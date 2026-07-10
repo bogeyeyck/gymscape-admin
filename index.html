@@ -229,7 +229,7 @@ async function loadSummary(){
   document.getElementById('rangeLabel2').textContent='('+DAYS+'d)';
   const t=d.totals, td=d.today, yd=d.yesterday;
   document.getElementById('cards').innerHTML =
-    card('Members', fmt(t.members)) + card('DAU', fmt(t.dau)) + card('WAU', fmt(t.wau)) + card('MAU', fmt(t.mau)) +
+    card('Named members', fmt(t.named)) + card('All accounts', fmt(t.members)) + card('DAU', fmt(t.dau)) + card('WAU', fmt(t.wau)) + card('MAU', fmt(t.mau)) +
     card('Subscribers', fmt(t.subs)) + card('MRR', '$'+fmt(t.mrr)) + card('Clans', fmt(t.clans)) + card('Push devices', fmt(t.push_devices));
   document.getElementById('digest').innerHTML =
     card('Signups', fmt(td.signups), delta(td.signups, yd.signups)) +
