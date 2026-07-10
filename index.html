@@ -1,0 +1,136 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>GymScape Admin</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root { --ink:#0d0e12; --panel:#16181f; --panel2:#1e2129; --edge:#2a2e38; --gold:#ffc44d; --xp:#ffd84d; --parch:#eceef4; --stone:#969cac; --danger:#e0564b; --green:#7ec46a; }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--ink); color:var(--parch); font:15px/1.5 system-ui,-apple-system,sans-serif; padding:24px; max-width:1200px; margin:0 auto; }
+  h1 { font-size:22px; color:var(--gold); letter-spacing:.5px; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.12em; color:var(--stone); margin:28px 0 10px; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin-top:14px; }
+  .card { background:var(--panel); border:1px solid var(--edge); border-radius:10px; padding:12px 14px; }
+  .card .v { font-size:26px; color:var(--xp); font-weight:600; }
+  .card .l { font-size:12px; color:var(--stone); }
+  .delta { font-size:12px; margin-left:6px; }
+  .up { color:var(--green); } .down { color:var(--danger); }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; } @media(max-width:800px){ .grid2{grid-template-columns:1fr} }
+  .panel { background:var(--panel); border:1px solid var(--edge); border-radius:10px; padding:14px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; color:var(--stone); font-weight:500; padding:6px 8px; border-bottom:1px solid var(--edge); }
+  td { padding:6px 8px; border-bottom:1px solid var(--edge); }
+  tr.u:hover { background:var(--panel2); cursor:pointer; }
+  input,button { font:inherit; border-radius:8px; border:1px solid var(--edge); background:var(--panel2); color:var(--parch); padding:9px 12px; }
+  button { background:var(--gold); color:#241c0e; border:none; font-weight:600; cursor:pointer; }
+  .pill { display:inline-block; padding:1px 8px; border-radius:99px; font-size:11px; border:1px solid var(--edge); color:var(--stone); }
+  .pill.active,.pill.trialing { color:var(--green); border-color:var(--green); }
+  .pill.cancelled,.pill.billing_issue { color:var(--gold); border-color:var(--gold); }
+  #drill { position:fixed; inset:0; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; padding:20px; }
+  #drill .inner { background:var(--panel); border:1px solid var(--edge); border-radius:12px; max-width:640px; width:100%; max-height:80vh; overflow:auto; padding:18px; }
+  a { color:var(--stone); cursor:pointer; }
+  canvas { max-height:220px; }
+  #login { display:flex; min-height:80vh; align-items:center; justify-content:center; }
+  #dash { display:none; }
+</style></head>
+<body>
+<div id="login">
+  <form id="f" class="panel" style="width:320px;display:flex;flex-direction:column;gap:10px">
+    <h1>GymScape Admin</h1>
+    <input id="u" placeholder="Username" autocomplete="username" />
+    <input id="p" placeholder="Password" type="password" autocomplete="current-password" />
+    <button>Sign in</button>
+    <p id="err" style="color:var(--danger);font-size:13px"></p>
+  </form>
+</div>
+<div id="dash">
+  <div style="display:flex;justify-content:space-between;align-items:baseline">
+    <h1>GymScape Admin</h1><a onclick="logout()">Sign out</a>
+  </div>
+  <div class="cards" id="cards"></div>
+  <h2>Today vs yesterday</h2><div class="cards" id="digest"></div>
+  <h2>Last 30 days</h2>
+  <div class="grid2">
+    <div class="panel"><canvas id="cSign"></canvas></div>
+    <div class="panel"><canvas id="cActive"></canvas></div>
+    <div class="panel"><canvas id="cWork"></canvas></div>
+    <div class="panel"><canvas id="cGp"></canvas></div>
+  </div>
+  <h2>Members</h2>
+  <div class="panel">
+    <input id="q" placeholder="Search username or id…" style="width:260px;margin-bottom:10px" />
+    <div style="overflow-x:auto"><table id="users"><thead><tr>
+      <th>User</th><th>Joined</th><th>Last active</th><th>Str XP</th><th>Agi XP</th><th>Gold</th><th>Sub</th>
+    </tr></thead><tbody></tbody></table></div>
+  </div>
+  <div class="grid2" style="margin-top:14px">
+    <div class="panel"><h2 style="margin-top:0">Top events (7d)</h2><table id="events"><tbody></tbody></table></div>
+    <div class="panel"><h2 style="margin-top:0">Clans</h2><table id="clans"><tbody></tbody></table></div>
+  </div>
+</div>
+<div id="drill" onclick="if(event.target===this)this.style.display='none'"><div class="inner" id="drillBody"></div></div>
+<script>
+const API = 'https://hjhuirpegaghxvaycgrt.supabase.co/functions/v1/admin';
+const tok = () => localStorage.getItem('gs_admin_token');
+const api = (p) => fetch(API + p, { headers: { Authorization: 'Bearer ' + (tok() || '') } }).then(r => { if (r.status === 401) { logout(); throw new Error('unauthorized'); } return r.json(); });
+function logout(){ localStorage.removeItem('gs_admin_token'); document.getElementById('dash').style.display='none'; document.getElementById('login').style.display='flex'; }
+
+const fmt = n => Number(n||0).toLocaleString();
+const ago = t => { if(!t) return '—'; const s=(Date.now()-new Date(t))/1e3;
+  return s<3600 ? Math.floor(s/60)+'m ago' : s<86400 ? Math.floor(s/3600)+'h ago' : Math.floor(s/86400)+'d ago'; };
+let USERS = []; let CHARTS = [];
+function card(l,v,extra=''){ return '<div class="card"><div class="v">'+v+extra+'</div><div class="l">'+l+'</div></div>'; }
+function delta(t,y){ const d=t-y; if(!y&&!t) return ''; const cls=d>=0?'up':'down'; return '<span class="delta '+cls+'">'+(d>=0?'+':'')+fmt(d)+' vs yd</span>'; }
+function chart(id,label,series,key,color){ CHARTS.push(new Chart(document.getElementById(id),{type:'line',data:{labels:series.map(s=>s.day.slice(5)),
+  datasets:[{label,data:series.map(s=>s[key]),borderColor:color,backgroundColor:color+'33',fill:true,tension:.3,pointRadius:0}]},
+  options:{plugins:{legend:{labels:{color:'#969cac'}}},scales:{x:{ticks:{color:'#969cac',maxTicksLimit:10},grid:{color:'#2a2e38'}},y:{ticks:{color:'#969cac',precision:0},grid:{color:'#2a2e38'},beginAtZero:true}}}})); }
+function renderUsers(list){ document.querySelector('#users tbody').innerHTML = list.map(u =>
+  '<tr class="u" onclick="drill(\''+u.id+'\')"><td>'+(u.username||'<span style="color:var(--stone)">anonymous</span>')+'</td>'+
+  '<td>'+(u.created_at? new Date(u.created_at).toLocaleDateString():'—')+'</td><td>'+ago(u.last_active)+'</td>'+
+  '<td>'+fmt(u.strength_xp)+'</td><td>'+fmt(u.agility_xp)+'</td><td>'+fmt(u.coins)+'</td>'+
+  '<td>'+(u.sub_status?'<span class="pill '+u.sub_status+'">'+u.sub_status+'</span>':'<span class="pill">free</span>')+'</td></tr>').join(''); }
+async function drill(id){
+  const d = await api('/api/user?id='+id);
+  const p = d.profile||{};
+  document.getElementById('drillBody').innerHTML = '<h1 style="font-size:18px">'+(p.username||'anonymous')+'</h1>'+
+    '<p style="color:var(--stone);font-size:12px">'+p.id+'</p>'+
+    '<p style="margin:8px 0">'+fmt(p.strength_xp)+' str xp · '+fmt(p.agility_xp)+' agi xp · '+fmt(p.coins)+' gp'+
+    (d.clan?' · clan: '+d.clan:'')+(p.sub_status?' · <span class="pill '+p.sub_status+'">'+p.sub_status+'</span>':'')+'</p>'+
+    '<table><tbody>'+(d.timeline||[]).map(t=>'<tr><td style="color:var(--stone);white-space:nowrap">'+new Date(t.created_at).toLocaleString()+'</td><td>'+t.kind+'</td><td>'+t.label+'</td><td style="color:var(--stone)">'+(t.detail||'')+'</td></tr>').join('')+'</tbody></table>';
+  document.getElementById('drill').style.display='flex';
+}
+async function boot(){
+  let d; try { d = await api('/api/summary'); } catch { return; }
+  if (d.error) return;
+  document.getElementById('login').style.display='none';
+  document.getElementById('dash').style.display='block';
+  CHARTS.forEach(c=>c.destroy()); CHARTS=[];
+  const t = d.totals, td = d.today, yd = d.yesterday;
+  document.getElementById('cards').innerHTML =
+    card('Members', fmt(t.members)) + card('DAU', fmt(t.dau)) + card('WAU', fmt(t.wau)) + card('MAU', fmt(t.mau)) +
+    card('Subscribers', fmt(t.subs)) + card('MRR', '$'+fmt(t.mrr)) + card('Clans', fmt(t.clans)) + card('Push devices', fmt(t.push_devices));
+  document.getElementById('digest').innerHTML =
+    card('Signups today', fmt(td.signups), delta(td.signups, yd.signups)) +
+    card('Active today', fmt(td.active), delta(td.active, yd.active)) +
+    card('Workouts', fmt(td.workouts), delta(td.workouts, yd.workouts)) +
+    card('Reps', fmt(td.reps), delta(td.reps, yd.reps)) +
+    card('GP earned', fmt(td.gp), delta(td.gp, yd.gp)) +
+    card('Unlocks bought', fmt(td.unlocks), delta(td.unlocks, yd.unlocks)) +
+    card('Steps', fmt(td.steps), delta(td.steps, yd.steps));
+  chart('cSign','Signups',d.series,'signups','#ffc44d');
+  chart('cActive','Active users',d.series,'active','#7ec46a');
+  chart('cWork','Workouts',d.series,'workouts','#ffd84d');
+  chart('cGp','GP earned',d.series,'gp','#e0a34d');
+  USERS = d.users||[]; renderUsers(USERS);
+  document.getElementById('q').oninput = e => { const q=e.target.value.toLowerCase();
+    renderUsers(USERS.filter(u=>(u.username||'').toLowerCase().includes(q)||u.id.includes(q))); };
+  document.querySelector('#events tbody').innerHTML = (d.top_events||[]).map(e=>'<tr><td>'+e.name+'</td><td style="text-align:right">'+fmt(e.n)+'</td></tr>').join('') || '<tr><td style="color:var(--stone)">No events yet — ships with the next app build</td></tr>';
+  document.querySelector('#clans tbody').innerHTML = (d.clans_list||[]).map(c=>'<tr><td>'+c.name+'</td><td>'+fmt(c.member_count)+' members</td><td style="text-align:right">'+fmt(c.total_reps)+' reps</td></tr>').join('') || '<tr><td style="color:var(--stone)">No clans yet</td></tr>';
+}
+document.getElementById('f').onsubmit = async (e) => {
+  e.preventDefault();
+  const r = await fetch(API + '/login', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ username: document.getElementById('u').value, password: document.getElementById('p').value }) });
+  const d = await r.json();
+  if (r.ok && d.token) { localStorage.setItem('gs_admin_token', d.token); boot(); }
+  else document.getElementById('err').textContent = d.error || 'Login failed';
+};
+if (tok()) boot();
+</script></body></html>
