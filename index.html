@@ -115,8 +115,12 @@
     </tr></thead><tbody></tbody></table></div>
   </div>
   <div class="grid2" style="margin-top:14px">
+    <div class="panel"><h2 style="margin-top:0">Campaign links <span class="muted">(clicks — installs live in App Store Connect)</span></h2><table id="campaigns"><tbody></tbody></table></div>
     <div class="panel"><h2 style="margin-top:0">Top events</h2><table id="events"><tbody></tbody></table></div>
+  </div>
+  <div class="grid2" style="margin-top:14px">
     <div class="panel"><h2 style="margin-top:0">Clans</h2><table id="clans"><tbody></tbody></table></div>
+    <div></div>
   </div>
 </div>
 <div id="drill" onclick="if(event.target===this)this.style.display='none'"><div class="inner" id="drillBody"></div></div>
@@ -249,6 +253,11 @@ async function loadSummary(){
     data:{labels:ex.map(e=>exName(e.exercise)),datasets:[{label:'Reps',data:ex.map(e=>e.reps),backgroundColor:'#ffc44daa'},{label:'Users',data:ex.map(e=>e.users),backgroundColor:'#6aa9c4aa'}]},
     options:{indexAxis:'y',plugins:{legend:{labels:{color:'#969cac',boxWidth:12}}},scales:{x:{ticks:{color:'#969cac',precision:0},grid:{color:'#22252e'}},y:{ticks:{color:'#eceef4'},grid:{display:false}}}}}));
   USERS=d.users||[]; applyUsers();
+  api('/api/campaigns?days='+DAYS).then(c => {
+    document.querySelector('#campaigns tbody').innerHTML = (c.campaigns||[]).map(x =>
+      '<tr><td>/go/'+x.campaign+'</td><td style="text-align:right">'+fmt(x.clicks)+' clicks</td><td class="muted" style="text-align:right">'+ago(x.last)+'</td></tr>').join('')
+      || '<tr><td class="muted">No campaign clicks yet — share a gymscape.app/go/… link</td></tr>';
+  }).catch(()=>{});
   document.querySelector('#events tbody').innerHTML = (d.top_events||[]).map(e=>'<tr><td>'+e.name+'</td><td style="text-align:right">'+fmt(e.n)+'</td></tr>').join('') || '<tr><td class="muted">No events yet — ships with the next app build</td></tr>';
   document.querySelector('#clans tbody').innerHTML = (d.clans_list||[]).map(c=>'<tr><td>'+c.name+'</td><td>'+fmt(c.member_count)+' members</td><td style="text-align:right">'+fmt(c.total_reps)+' reps</td></tr>').join('') || '<tr><td class="muted">No clans yet</td></tr>';
 }
