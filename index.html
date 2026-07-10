@@ -120,7 +120,7 @@
   </div>
   <div class="grid2" style="margin-top:14px">
     <div class="panel"><h2 style="margin-top:0">Clans</h2><table id="clans"><tbody></tbody></table></div>
-    <div></div>
+    <div class="panel"><h2 style="margin-top:0">Paywall funnel</h2><table id="paywall"><tbody></tbody></table></div>
   </div>
 </div>
 <div id="drill" onclick="if(event.target===this)this.style.display='none'"><div class="inner" id="drillBody"></div></div>
@@ -253,6 +253,12 @@ async function loadSummary(){
     data:{labels:ex.map(e=>exName(e.exercise)),datasets:[{label:'Reps',data:ex.map(e=>e.reps),backgroundColor:'#ffc44daa'},{label:'Users',data:ex.map(e=>e.users),backgroundColor:'#6aa9c4aa'}]},
     options:{indexAxis:'y',plugins:{legend:{labels:{color:'#969cac',boxWidth:12}}},scales:{x:{ticks:{color:'#969cac',precision:0},grid:{color:'#22252e'}},y:{ticks:{color:'#eceef4'},grid:{display:false}}}}}));
   USERS=d.users||[]; applyUsers();
+  api('/api/paywall?days='+DAYS).then(rows => {
+    const el = document.querySelector('#paywall tbody');
+    el.innerHTML = (rows&&rows.length) ? '<tr><th style="text-align:left">Trigger</th><th>Viewed</th><th>Started</th><th>Subscribed</th><th>CVR</th></tr>' + rows.map(r =>
+      '<tr><td>'+r.trigger+(r.variant!=='-'?' <span class="muted">('+r.variant+')</span>':'')+'</td><td style="text-align:center">'+fmt(r.viewed)+'</td><td style="text-align:center">'+fmt(r.started)+'</td><td style="text-align:center">'+fmt(r.completed)+'</td><td style="text-align:center">'+(r.viewed>0?Math.round(100*r.completed/r.viewed)+'%':'—')+'</td></tr>').join('')
+      : '<tr><td class="muted">No paywall views yet — flips on with the paywall flag</td></tr>';
+  }).catch(()=>{});
   api('/api/campaigns?days='+DAYS).then(c => {
     document.querySelector('#campaigns tbody').innerHTML = (c.campaigns||[]).map(x =>
       '<tr><td>/go/'+x.campaign+'</td><td style="text-align:right">'+fmt(x.clicks)+' clicks</td><td class="muted" style="text-align:right">'+ago(x.last)+'</td></tr>').join('')
