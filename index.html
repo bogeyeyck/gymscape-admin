@@ -92,7 +92,7 @@
     </div>
   </div>
   <h2>Retention <span class="seg" id="retSeg" style="margin-left:8px">
-    <button data-s="all" class="on">All</button><button data-s="free">Free</button><button data-s="subs">Subscribers</button>
+    <button data-s="all" class="on">All</button><button data-s="named">Named</button><button data-s="members">Members</button>
   </span></h2>
   <div class="cards" id="retQuick"></div>
   <div class="panel" style="margin-top:10px;overflow-x:auto">
@@ -216,7 +216,7 @@ function renderRetention(){
       Array.from({length:maxK},(_,k)=>{ if(!(k in wk)) return '<td><span class="cell muted">·</span></td>';
         const p=r.size?Math.round(100*wk[k]/r.size):0;
         return '<td><span class="cell" style="background:'+heat(p)+'">'+p+'%</span></td>'; }).join('')+'</tr>';
-  }).join('') : '<tr><td class="muted" colspan="10">No cohorts yet for this segment.</td></tr>';
+  }).join('') : '<tr><td class="muted" colspan="10">No one in this segment yet.</td></tr>';
 }
 document.querySelectorAll('#retSeg button').forEach(b=>b.onclick=()=>{ RETSEG=b.dataset.s;
   document.querySelectorAll('#retSeg button').forEach(x=>x.classList.toggle('on',x===b)); renderRetention(); });
@@ -230,7 +230,7 @@ async function loadSummary(){
   const t=d.totals, td=d.today, yd=d.yesterday;
   document.getElementById('cards').innerHTML =
     card('Named members', fmt(t.named)) + card('All accounts', fmt(t.members)) + card('DAU', fmt(t.dau)) + card('WAU', fmt(t.wau)) + card('MAU', fmt(t.mau)) +
-    card('Subscribers', fmt(t.subs)) + card('MRR', '$'+fmt(t.mrr)) + card('Clans', fmt(t.clans)) + card('Push devices', fmt(t.push_devices));
+    card('Members (paying)', fmt(t.subs)) + card('MRR', '$'+fmt(t.mrr)) + card('Clans', fmt(t.clans)) + card('Push devices', fmt(t.push_devices));
   document.getElementById('digest').innerHTML =
     card('Signups', fmt(td.signups), delta(td.signups, yd.signups)) +
     card('Active', fmt(td.active), delta(td.active, yd.active)) +
