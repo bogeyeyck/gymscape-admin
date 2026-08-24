@@ -28,6 +28,20 @@
   .brand { display:flex; align-items:center; gap:10px; }
   .brand img { width:30px; height:30px; image-rendering:pixelated; }
 
+  /* funnel */
+  .funnel { display:flex; gap:0; flex-wrap:wrap; align-items:stretch; margin-top:12px; }
+  .fstage { flex:1 1 110px; min-width:104px; background:linear-gradient(180deg,var(--panel2),var(--panel)); border:1px solid var(--edge); border-radius:12px; padding:10px 12px; box-shadow:var(--bevel); text-align:center; }
+  .fstage .v { font:400 28px/1 var(--f-num); color:var(--xp); text-shadow:1px 1px 0 rgba(0,0,0,.55); }
+  .fstage .l { font-size:11.5px; color:var(--stone); margin-top:4px; }
+  .farrow { display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 6px; min-width:46px; }
+  .farrow .pct { font:400 15px var(--f-num); color:var(--gold); }
+  .farrow .ar { color:var(--edgelit); font-size:15px; line-height:1; }
+  .rc-row { display:flex; gap:10px; padding:5px 0; border-bottom:1px solid var(--edge); font-size:12.5px; align-items:baseline; }
+  .rc-row:last-child { border-bottom:none; }
+  .tag { font-size:10.5px; border:1px solid var(--edge); border-radius:99px; padding:0 7px; color:var(--stone); }
+  .tag.ok { color:var(--green); border-color:var(--green); }
+  .warn { color:var(--danger); font-size:12.5px; }
+
   /* stat cards */
   .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(142px,1fr)); gap:10px; margin-top:12px; }
   .card { background:linear-gradient(180deg,var(--panel2),var(--panel)); border:1px solid var(--edge); border-radius:12px; padding:12px 14px; box-shadow:var(--bevel); }
@@ -123,11 +137,15 @@
     </div>
     <div style="display:flex;gap:14px;align-items:center">
       <div class="seg" id="range">
-        <button data-d="7">7d</button><button data-d="30" class="on">30d</button><button data-d="90">90d</button>
+        <button data-d="7">7d</button><button data-d="30" class="on">30d</button><button data-d="90">90d</button><button data-d="365">All</button>
       </div>
       <a onclick="logout()">Sign out</a>
     </div>
   </div>
+  <h2 style="margin-top:6px">The funnel <span class="muted" id="funnelLabel"></span></h2>
+  <div class="funnel" id="funnel"><p class="muted">Loading…</p></div>
+  <p class="muted" id="funnelNote" style="margin-top:6px"></p>
+  <h2>Totals</h2>
   <div class="cards" id="cards"></div>
   <h2>Today vs yesterday</h2><div class="cards" id="digest"></div>
   <div class="split" style="margin-top:24px">
@@ -159,10 +177,10 @@
   <div class="panel">
     <div class="filters">
       <input id="q" placeholder="Search username or id…" style="width:230px" />
-      <button class="fbtn on" data-f="all">All</button>
+      <button class="fbtn" data-f="all">All</button>
       <button class="fbtn" data-f="subs">Subscribers</button>
       <button class="fbtn" data-f="active">Active 7d</button>
-      <button class="fbtn" data-f="named">Named</button>
+      <button class="fbtn on" data-f="named">Named</button>
       <button class="fbtn" data-f="dormant">Dormant 7d+</button>
     </div>
     <div style="overflow-x:auto"><table id="users"><thead><tr>
@@ -172,6 +190,7 @@
   </div>
   <div class="grid2" style="margin-top:14px">
     <div class="panel"><h2 style="margin-top:0">Campaign links <span class="muted">(clicks — installs live in App Store Connect)</span></h2><table id="campaigns"><tbody></tbody></table></div>
+    <div class="panel"><h2 style="margin-top:0">RevenueCat feed</h2><div id="rc"><p class="muted">Loading…</p></div></div>
     <div class="panel"><h2 style="margin-top:0">Top events</h2><table id="events"><tbody></tbody></table></div>
   </div>
   <div class="grid2" style="margin-top:14px">
@@ -196,7 +215,7 @@ const fmt = n => Number(n||0).toLocaleString();
 const ago = t => { if(!t) return '—'; const s=(Date.now()-new Date(t))/1e3;
   return s<60 ? 'just now' : s<3600 ? Math.floor(s/60)+'m ago' : s<86400 ? Math.floor(s/3600)+'h ago' : Math.floor(s/86400)+'d ago'; };
 const exName = e => ({session:'legacy sessions',jumpingJacks:'jumping jacks',highKnees:'high knees',jumpRope:'jump rope',squats:'squats',pushUps:'push-ups',pushUpsClose:'push-ups (floor)',lunges:'lunges',bicepCurls:'bicep curls',weightedSquats:'weighted squats',weightedLunges:'weighted lunges',sitUps:'sit-ups',highPlank:'high plank',shoulderPress:'shoulder press'})[e]||e;
-let USERS=[], DAYS=30, FILTER='all', SORT={k:'created_at',dir:-1}, RET=null, RETSEG='all', FEEDTIMER=null, FEEDSINCE=null, SEEN=new Set();
+let USERS=[], DAYS=30, FILTER='named', SORT={k:'created_at',dir:-1}, RET=null, RETSEG='all', FEEDTIMER=null, FEEDSINCE=null, SEEN=new Set();
 
 function card(l,v,extra=''){ return '<div class="card"><div class="v">'+v+extra+'</div><div class="l">'+l+'</div></div>'; }
 function delta(t,y){ const d=t-y; if(!y&&!t) return ''; const cls=d>=0?'up':'down'; return '<span class="delta '+cls+'">'+(d>=0?'+':'')+fmt(d)+'</span>'; }
@@ -289,9 +308,40 @@ document.querySelectorAll('#retSeg button').forEach(b=>b.onclick=()=>{ RETSEG=b.
   document.querySelectorAll('#retSeg button').forEach(x=>x.classList.toggle('on',x===b)); renderRetention(); });
 
 // ---------- summary ----------
+function fstage(l,v){ return '<div class="fstage"><div class="v">'+fmt(v)+'</div><div class="l">'+l+'</div></div>'; }
+function farrow(from,to){ const p = from>0 ? Math.round(100*to/from) : null;
+  return '<div class="farrow"><span class="pct">'+(p===null?'–':p+'%')+'</span><span class="ar">→</span></div>'; }
+async function loadFunnel(){
+  const f = await api('/api/funnel?days='+(DAYS===365?36500:DAYS));
+  if (!f || f.error) return;
+  document.getElementById('funnelLabel').textContent = DAYS===365 ? '(all time, by signup cohort)' : '('+DAYS+'d signup cohort)';
+  document.getElementById('funnel').innerHTML =
+    fstage('Link clicks', f.clicks) + farrow(f.clicks, f.installs) +
+    fstage('Installs', f.installs) + farrow(f.installs, f.named) +
+    fstage('Named account', f.named) + farrow(f.named, f.worked) +
+    fstage('First workout', f.worked) + farrow(f.worked, f.trial) +
+    fstage('Trial', f.trial) + farrow(f.trial, f.paying) +
+    fstage('Paying', f.paying);
+  const notes = [];
+  if (f.all_paying > f.paying) notes.push((f.all_paying - f.paying) + ' paying member(s) outside this cohort window');
+  if (f.unlinked_subs > 0) notes.push(f.unlinked_subs + ' subscriber(s) not yet linked to an account (RevenueCat anonymous id; links on their next app open)');
+  notes.push('Clicks come from gymscape.app/go links; store downloads live in App Store Connect / Play Console.');
+  document.getElementById('funnelNote').textContent = notes.join(' · ');
+}
+async function loadRc(){
+  const r = await api('/api/rc');
+  if (!r || r.error) return;
+  const el = document.getElementById('rc');
+  if (!r.total) { el.innerHTML = '<p class="warn">No webhook events received yet. Check the webhook config in RevenueCat.</p>'; return; }
+  const ignored = (r.ignored_products||[]).length ? '<p class="warn">Ignored product ids: '+r.ignored_products.join(', ')+' (not in the webhook whitelist)</p>' : '';
+  el.innerHTML = '<p class="muted">'+fmt(r.total)+' events · last '+ago(r.last_at)+'</p>' + ignored +
+    (r.recent||[]).slice(0,8).map(e => '<div class="rc-row"><span>'+e.type+'</span><span class="muted">'+String(e.product||'').split(':')[0]+'</span>'+
+      '<span class="tag'+(e.linked?' ok':'')+'">'+(e.linked?'linked':'rc-anon')+'</span><span class="muted" style="margin-left:auto">'+ago(e.at)+'</span></div>').join('');
+}
 async function loadSummary(){
   const d = await api('/api/summary?days='+DAYS);
   if (d.error) return;
+  loadFunnel().catch(()=>{}); loadRc().catch(()=>{});
   document.getElementById('rangeLabel').textContent='('+DAYS+'d)';
   document.getElementById('rangeLabel2').textContent='('+DAYS+'d)';
   const t=d.totals, td=d.today, yd=d.yesterday;
