@@ -145,6 +145,9 @@
   <h2 style="margin-top:6px">The funnel <span class="muted" id="funnelLabel"></span></h2>
   <div class="funnel" id="funnel"><p class="muted">Loading…</p></div>
   <p class="muted" id="funnelNote" style="margin-top:6px"></p>
+  <h2>Subscribers <span class="muted" id="subsLabel"></span></h2>
+  <div class="panel" style="overflow-x:auto"><table id="subs"><tbody><tr><td class="muted">Loading…</td></tr></tbody></table><p class="muted" id="subsNote" style="margin:8px 0 0"></p></div>
+
   <h2>Totals</h2>
   <div class="cards" id="cards"></div>
   <h2>Today vs yesterday</h2><div class="cards" id="digest"></div>
@@ -324,9 +327,35 @@ async function loadFunnel(){
     fstage('Paying', f.paying);
   const notes = [];
   if (f.all_paying > f.paying) notes.push((f.all_paying - f.paying) + ' paying member(s) outside this cohort window');
-  if (f.unlinked_subs > 0) notes.push(f.unlinked_subs + ' subscriber(s) not yet linked to an account (RevenueCat anonymous id; links on their next app open)');
+  if (f.all_paying > 0) notes.push('see Subscribers below for every paying id, linked or not');
   notes.push('Clicks come from gymscape.app/go links; store downloads live in App Store Connect / Play Console.');
   document.getElementById('funnelNote').textContent = notes.join(' · ');
+}
+// Every subscription RevenueCat has reported, whether or not it maps to an
+// account here (Will 2026-09-04: "it says no one is paying").
+async function loadSubs(){
+  const rows = await api('/api/subs');
+  if (!rows || rows.error) return;
+  const entitled = rows.filter(r => r.entitled);
+  const linked = entitled.filter(r => r.kind === 'linked').length;
+  document.getElementById('subsLabel').textContent = '('+entitled.length+' paying · '+linked+' linked to a current account)';
+  const who = r => r.username ? r.username : (r.kind === 'anonymous' ? 'store purchase, never signed in' : r.kind === 'legacy' ? 'old-app account (pre-rework id)' : 'account without a name');
+  const tag = r => r.kind === 'linked' ? '<span class="tag ok">linked</span>' : r.kind === 'legacy' ? '<span class="tag">legacy</span>' : '<span class="tag">rc-anon</span>';
+  const env = r => r.environment === 'SANDBOX' ? ' <span class="tag">sandbox</span>' : '';
+  const store = r => ({ APP_STORE: 'App Store', PLAY_STORE: 'Play', RC_BILLING: 'Web' })[r.store] || (r.store || '');
+  document.querySelector('#subs tbody').innerHTML =
+    '<tr><th style="text-align:left">Who</th><th>Status</th><th>Plan</th><th>Store</th><th>Price</th><th>Renews / ends</th><th>Id</th></tr>' +
+    (rows.length ? rows.map(r => '<tr'+(r.entitled?'':' style="opacity:.55"')+'><td style="text-align:left;white-space:nowrap">'+who(r)+' '+tag(r)+env(r)+'</td>'+
+      '<td>'+r.status+(r.period==='TRIAL'?' (trial)':'')+'</td><td>'+String(r.product||'').replace('gymscape_','').replace('_prod','').replace('pro_web_','web ')+'</td>'+
+      '<td>'+store(r)+'</td><td>'+(r.price!=null?'$'+Number(r.price).toFixed(2):'–')+'</td><td>'+(r.expires_at?new Date(r.expires_at).toLocaleDateString():'–')+'</td>'+
+      '<td class="muted" style="font-family:monospace;font-size:11px">'+String(r.id).replace('$RCAnonymousID:','rc:').slice(0,16)+'</td></tr>').join('')
+    : '<tr><td class="muted">No subscriptions reported yet.</td></tr>');
+  const notes = [];
+  const legacy = entitled.filter(r => r.kind === 'legacy').length, anon = entitled.filter(r => r.kind === 'anonymous').length;
+  if (legacy) notes.push(legacy+' paying on an old-app account id that no longer exists in this database');
+  if (anon) notes.push(anon+' paying through the store without ever signing in (RevenueCat anonymous id)');
+  if (legacy || anon) notes.push('these count in Members (paying) and MRR but cannot show as Pro on a member row until the subscription transfers to a current account: Restore Purchases in the new app does that (the webhook re-keys on TRANSFER)');
+  document.getElementById('subsNote').textContent = notes.join(' · ');
 }
 async function loadRc(){
   const r = await api('/api/rc');
@@ -341,7 +370,7 @@ async function loadRc(){
 async function loadSummary(){
   const d = await api('/api/summary?days='+DAYS);
   if (d.error) return;
-  loadFunnel().catch(()=>{}); loadRc().catch(()=>{});
+  loadFunnel().catch(()=>{}); loadRc().catch(()=>{}); loadSubs().catch(()=>{});
   document.getElementById('rangeLabel').textContent='('+DAYS+'d)';
   document.getElementById('rangeLabel2').textContent='('+DAYS+'d)';
   const t=d.totals, td=d.today, yd=d.yesterday;
