@@ -1,434 +1,470 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>GymScape Admin</title>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cinzel+Decorative:wght@700&family=Jersey+10&family=Spectral:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="fonts/fonts.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
+  /* Tokens copied from the app (src/index.css). Same wall, same slabs, same type. */
   :root {
-    --ink:#1a1c1f; --panel:#202329; --panel2:#25282c; --edge:#383c42; --edgelit:#474c53;
-    --gold:#ffc44d; --gold-deep:#e8a72e; --xp:#ffd84d; --parch:#eceef4; --stone:#969cac;
-    --orange:#ffa64d; --green:#41d18a; --danger:#e0564b; --blue:#6aa9c4;
+    --ink:#1a1c1f; --panel:#202329; --panel2:#25282c; --edge:#383c42; --edge-lit:#474c53;
+    --gold:#ffc44d; --orange:#ffa64d; --xp:#ffd84d; --parch:#eceef4; --stone:#969cac; --danger:#e0564b; --green:#57d05a;
     --f-display:"Cinzel Decorative","Cinzel",ui-serif,Georgia,serif;
-    --f-heading:"Cinzel",ui-serif,Georgia,serif;
-    --f-num:"Jersey 10",ui-monospace,monospace;
+    --f-head:"Cinzel",ui-serif,Georgia,serif;
     --f-body:"Spectral",ui-serif,Georgia,serif;
-    --bevel:inset 0 1px 0 rgba(255,255,255,.055), inset 0 -1px 0 rgba(0,0,0,.38);
+    --f-num:"Jersey 10","Courier New",monospace;
   }
   * { box-sizing:border-box; margin:0; }
   html { color-scheme:dark; }
-  body { background:var(--ink); background-image:radial-gradient(1100px 480px at 50% -180px, rgba(255,196,77,.05), transparent 70%); color:var(--parch); font:15px/1.55 var(--f-body); }
-  .wrap { max-width:1280px; margin:0 auto; padding:0 20px 48px; }
-  h1 { font:700 20px var(--f-display); color:var(--gold); letter-spacing:.05em; text-shadow:0 0 26px rgba(255,196,77,.28), 1px 1px 0 #000; }
-  h2 { font:600 12.5px var(--f-heading); text-transform:uppercase; letter-spacing:.16em; color:var(--stone); margin:30px 0 10px; display:flex; align-items:center; gap:8px; }
-  h2::after { content:""; flex:1; height:1px; background:linear-gradient(90deg,var(--edge),transparent); }
-  a { color:var(--stone); cursor:pointer; text-decoration:none; }
-  a:hover { color:var(--gold); }
+  body {
+    color:var(--parch); font:15px/1.5 var(--f-body); min-height:100vh;
+    background: linear-gradient(180deg, rgba(0,0,0,.10) 0%, rgba(0,0,0,.22) 55%, rgba(0,0,0,.42) 100%), url('theme/wall_light.webp') top center / 264px 256px repeat fixed var(--ink);
+    text-shadow: 0 1px 2px rgba(0,0,0,.95), 0 0 8px rgba(0,0,0,.75);
+  }
+  .font-display { font-family:var(--f-display); font-variant-ligatures:none; }
+  .num { font-family:var(--f-num); font-variant-ligatures:none; }
+  .wrap { max-width:1320px; margin:0 auto; padding:0 18px 60px; }
 
-  /* top bar */
-  .topbar { position:sticky; top:0; z-index:5; background:rgba(26,28,31,.86); backdrop-filter:blur(10px); border-bottom:1px solid var(--edge); margin:0 -20px 18px; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; }
-  .brand { display:flex; align-items:center; gap:10px; }
-  .brand img { width:30px; height:30px; image-rendering:pixelated; }
+  /* slabs: the app's bg-panel / bg-panel-2 */
+  .slab { background:url('theme/face_panel.png') repeat; background-size:96px 96px; border:8px solid transparent; border-image:url('theme/slab_panel_9.png') 24 / 8px round; border-radius:6px; box-shadow:0 6px 14px -6px rgba(0,0,0,.7); text-shadow:none; padding:10px 12px; }
+  .slab2 { background:url('theme/face_panel2.png') repeat; background-size:96px 96px; border:6px solid transparent; border-image:url('theme/slab_panel2_9.png') 24 / 6px round; border-radius:5px; text-shadow:none; padding:8px 10px; }
+  .well { background:rgba(10,11,14,.55); box-shadow:inset 0 2px 4px rgba(0,0,0,.7), inset 0 -1px 0 rgba(255,255,255,.05); border-radius:5px; }
+  .pill { background:url('theme/pill_9.png') center / 100% 100% no-repeat; border-radius:20px; padding:6px 14px; min-height:40px; display:inline-flex; align-items:center; gap:8px; box-shadow:0 3px 6px -2px rgba(0,0,0,.6); text-shadow:none; }
+  .gold { background:url('theme/face_gold.png') repeat; background-size:96px 96px; border:8px solid transparent; border-image:url('theme/slab_gold_9.png') 24 / 8px round; border-radius:6px; color:#241c0e; font:700 15px var(--f-head); text-shadow:none; cursor:pointer; }
+  .gold:active { filter:brightness(1.1); }
+  .wall-text { display:inline-block; background:rgba(10,11,14,.62); border-radius:6px; padding:2px 8px; text-shadow:none; }
 
-  /* funnel */
-  .funnel { display:flex; gap:0; flex-wrap:wrap; align-items:stretch; margin-top:12px; }
-  .fstage { flex:1 1 110px; min-width:104px; background:linear-gradient(180deg,var(--panel2),var(--panel)); border:1px solid var(--edge); border-radius:12px; padding:10px 12px; box-shadow:var(--bevel); text-align:center; }
-  .fstage .v { font:400 28px/1 var(--f-num); color:var(--xp); text-shadow:1px 1px 0 rgba(0,0,0,.55); }
-  .fstage .l { font-size:11.5px; color:var(--stone); margin-top:4px; }
-  .farrow { display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 6px; min-width:46px; }
-  .farrow .pct { font:400 15px var(--f-num); color:var(--gold); }
-  .farrow .ar { color:var(--edgelit); font-size:15px; line-height:1; }
-  .rc-row { display:flex; gap:10px; padding:5px 0; border-bottom:1px solid var(--edge); font-size:12.5px; align-items:baseline; }
-  .rc-row:last-child { border-bottom:none; }
-  .tag { font-size:10.5px; border:1px solid var(--edge); border-radius:99px; padding:0 7px; color:var(--stone); }
-  .tag.ok { color:var(--green); border-color:var(--green); }
-  .warn { color:var(--danger); font-size:12.5px; }
+  h1 { font:700 22px var(--f-display); color:var(--gold); letter-spacing:.04em; }
+  h2 { font:700 15px var(--f-display); color:var(--parch); margin:26px 0 10px; display:flex; align-items:baseline; gap:10px; }
+  h2 small { font:400 12px var(--f-body); color:var(--stone); }
+  .label { font:600 10px var(--f-head); text-transform:uppercase; letter-spacing:.14em; color:var(--stone); }
+  .big { font:400 34px/1 var(--f-num); color:var(--xp); text-shadow:1px 1px 0 #000; }
+  .mid { font:400 22px/1 var(--f-num); color:var(--xp); text-shadow:1px 1px 0 #000; }
+  .stone { color:var(--stone); } .ok { color:var(--green); } .bad { color:var(--danger); } .goldc { color:var(--gold); } .orange { color:var(--orange); }
+  a { color:var(--stone); cursor:pointer; text-decoration:none; } a:hover { color:var(--gold); }
 
-  /* stat cards */
-  .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(142px,1fr)); gap:10px; margin-top:12px; }
-  .card { background:linear-gradient(180deg,var(--panel2),var(--panel)); border:1px solid var(--edge); border-radius:12px; padding:12px 14px; box-shadow:var(--bevel); }
-  .card .v { font:400 30px/1 var(--f-num); color:var(--xp); text-shadow:1px 1px 0 rgba(0,0,0,.55); display:flex; align-items:baseline; }
-  .card .l { font-size:12px; color:var(--stone); margin-top:5px; letter-spacing:.02em; }
-  .delta { font:400 16px var(--f-num); margin-left:7px; }
-  .up { color:var(--green); } .down { color:var(--danger); }
+  .topbar { position:sticky; top:0; z-index:5; margin:0 -18px 14px; padding:10px 18px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; background:linear-gradient(180deg, rgba(26,28,31,.96), rgba(26,28,31,.82)); border-bottom:1px solid rgba(0,0,0,.6); box-shadow:0 2px 10px rgba(0,0,0,.5); }
+  .seg { display:inline-flex; gap:4px; }
+  .seg button, .fbtn { font:600 12px var(--f-head); letter-spacing:.04em; color:var(--stone); background:rgba(10,11,14,.55); border:1px solid var(--edge); border-radius:20px; padding:6px 13px; cursor:pointer; text-shadow:none; }
+  .seg button.on, .fbtn.on { color:#241c0e; background:var(--gold); border-color:var(--gold); }
+  .seg button:hover, .fbtn:hover { border-color:var(--edge-lit); color:var(--parch); }
+  .seg button.on:hover, .fbtn.on:hover { color:#241c0e; }
 
-  /* layout + panels */
+  .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+  .card .label { margin-top:4px; display:block; }
+  .card .sub { font-size:12px; color:var(--stone); margin-top:2px; }
+  .answers { display:grid; grid-template-columns:repeat(auto-fit,minmax(380px,1fr)); gap:12px; }
+  .answer .q { font:700 13px var(--f-head); color:var(--orange); letter-spacing:.02em; }
+  .answer .a { display:flex; align-items:baseline; gap:10px; margin-top:6px; }
+  .answer .a .big { font-size:40px; }
+  .answer .a .of { color:var(--stone); font-size:13px; }
+  .answer .rows { margin-top:8px; display:grid; gap:4px; }
+  .bar { display:grid; grid-template-columns:110px 1fr 46px; gap:8px; align-items:center; font-size:12.5px; }
+  .bar .track { height:8px; border-radius:4px; background:rgba(10,11,14,.6); box-shadow:inset 0 1px 2px rgba(0,0,0,.7); overflow:hidden; }
+  .bar .fill { height:100%; background:linear-gradient(90deg, var(--orange), var(--xp)); }
+  .bar .n { text-align:right; font-family:var(--f-num); font-size:16px; color:var(--xp); }
+  .steps { display:flex; align-items:center; gap:6px; flex-wrap:nowrap; margin-top:6px; overflow-x:auto; }
+  .step { text-align:center; padding:6px 8px; min-width:78px; flex:0 0 auto; }
+  .step .big { font-size:26px; }
+  .step .label { font-size:9.5px; }
+  .arrow { color:var(--stone); font-family:var(--f-num); font-size:15px; }
+
+  .split { display:grid; grid-template-columns:3fr 2fr; gap:14px; align-items:start; } @media(max-width:980px){ .split{grid-template-columns:1fr} }
   .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; } @media(max-width:840px){ .grid2{grid-template-columns:1fr} }
-  .split { display:grid; grid-template-columns:2fr 1fr; gap:14px; align-items:start; } @media(max-width:960px){ .split{grid-template-columns:1fr} }
-  .panel { background:var(--panel); border:1px solid var(--edge); border-radius:14px; padding:16px; box-shadow:var(--bevel), 0 4px 18px rgba(0,0,0,.25); }
 
-  /* tables */
-  table { width:100%; border-collapse:collapse; font-size:13.5px; }
-  th { text-align:left; color:var(--stone); font:600 11.5px var(--f-heading); text-transform:uppercase; letter-spacing:.08em; padding:8px; border-bottom:1px solid var(--edgelit); cursor:pointer; user-select:none; white-space:nowrap; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; font:600 10px var(--f-head); text-transform:uppercase; letter-spacing:.12em; color:var(--stone); padding:7px 8px; border-bottom:1px solid var(--edge); white-space:nowrap; cursor:pointer; user-select:none; }
   th:hover { color:var(--gold); }
-  td { padding:8px; border-bottom:1px solid var(--edge); }
+  td { padding:7px 8px; border-bottom:1px solid rgba(255,255,255,.05); white-space:nowrap; font-variant-numeric:tabular-nums; }
   tr:last-child td { border-bottom:none; }
-  tr.u:hover { background:var(--panel2); cursor:pointer; box-shadow:inset 2px 0 0 var(--gold); }
-  td { font-variant-numeric:tabular-nums; }
+  tr.u { cursor:pointer; } tr.u:hover td { background:rgba(255,196,77,.06); }
+  td .n { font-family:var(--f-num); font-size:17px; color:var(--xp); }
+  .tag { display:inline-block; font:600 10px var(--f-head); letter-spacing:.06em; text-transform:uppercase; padding:2px 8px; border-radius:12px; border:1px solid var(--edge); color:var(--stone); background:rgba(10,11,14,.5); }
+  .tag.member, .tag.allowed, .tag.trial { color:var(--green); border-color:rgba(87,208,90,.5); }
+  .tag.lapsed, .tag.denied { color:var(--danger); border-color:rgba(224,86,75,.5); }
+  .tag.legacy, .tag.anonymous { color:var(--orange); border-color:rgba(255,166,77,.5); }
 
-  /* inputs + buttons */
-  input,button,select { font:inherit; border-radius:10px; border:1px solid var(--edge); background:var(--panel2); color:var(--parch); padding:9px 13px; box-shadow:var(--bevel); }
-  input::placeholder { color:var(--stone); opacity:.7; }
-  input:focus-visible,button:focus-visible { outline:2px solid var(--gold); outline-offset:1px; }
-  button.cta { background:linear-gradient(180deg,var(--gold),var(--gold-deep)); color:#241c0e; border:none; font:600 15px var(--f-heading); letter-spacing:.03em; cursor:pointer; box-shadow:inset 0 1px 0 rgba(255,255,255,.35), inset 0 -2px 0 rgba(0,0,0,.22), 0 2px 8px rgba(0,0,0,.35); }
-  button.cta:hover { filter:brightness(1.07); }
-  button.cta:active { transform:translateY(1px); }
+  input { font:inherit; color:var(--parch); background:rgba(10,11,14,.6); border:1px solid var(--edge); border-radius:20px; padding:7px 14px; box-shadow:inset 0 1px 2px rgba(0,0,0,.6); text-shadow:none; }
+  input::placeholder { color:var(--stone); }
+  input:focus-visible, button:focus-visible { outline:2px solid var(--gold); outline-offset:1px; }
+  .filters { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
 
-  .pill { display:inline-block; padding:1px 9px; border-radius:99px; font-size:11.5px; border:1px solid var(--edge); color:var(--stone); background:rgba(0,0,0,.18); }
-  .pill.active,.pill.trialing { color:var(--green); border-color:var(--green); }
-  .pill.cancelled,.pill.billing_issue { color:var(--gold); border-color:var(--gold); }
-
-  .seg { display:inline-flex; border:1px solid var(--edge); border-radius:99px; overflow:hidden; background:var(--panel); box-shadow:var(--bevel); }
-  .seg button { border:none; border-radius:0; background:transparent; color:var(--stone); padding:6px 15px; cursor:pointer; font:500 12.5px var(--f-heading); box-shadow:none; }
-  .seg button.on { background:linear-gradient(180deg,var(--gold),var(--gold-deep)); color:#241c0e; font-weight:700; }
-
-  .filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; align-items:center; }
-  .fbtn { border:1px solid var(--edge); background:transparent; color:var(--stone); border-radius:99px; padding:5px 13px; cursor:pointer; font-size:12.5px; box-shadow:none; }
-  .fbtn:hover { border-color:var(--edgelit); color:var(--parch); }
-  .fbtn.on { border-color:var(--gold); color:var(--gold); background:rgba(255,196,77,.08); }
-  .muted { color:var(--stone); font-size:12.5px; }
-
-  /* drill modal */
-  #drill { position:fixed; inset:0; background:rgba(10,11,12,.78); display:none; align-items:center; justify-content:center; padding:20px; z-index:10; backdrop-filter:blur(3px); }
-  #drill .inner { background:var(--panel); border:1px solid var(--edgelit); border-radius:16px; max-width:680px; width:100%; max-height:82vh; overflow:auto; padding:20px; box-shadow:var(--bevel), 0 18px 60px rgba(0,0,0,.6); }
-
-  canvas { max-height:200px; }
-
-  /* login */
-  #login { display:flex; min-height:92vh; align-items:center; justify-content:center; padding:20px; }
-  #login form { width:340px; display:flex; flex-direction:column; gap:12px; padding:26px 24px; text-align:center; }
-  #login h1 { font-size:22px; }
-  #login img.gob { width:72px; height:72px; margin:0 auto; image-rendering:pixelated; filter:drop-shadow(0 4px 10px rgba(0,0,0,.5)); }
-  #login .sub { font:500 11.5px var(--f-heading); text-transform:uppercase; letter-spacing:.2em; color:var(--stone); margin-top:-6px; }
-
-  #dash { display:none; }
-  .live { width:8px; height:8px; border-radius:99px; background:var(--green); display:inline-block; animation:pulse 1.6s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1; box-shadow:0 0 0 0 rgba(65,209,138,.5)} 50%{opacity:.6; box-shadow:0 0 0 6px rgba(65,209,138,0)} }
-  #feed { max-height:520px; overflow-y:auto; display:flex; flex-direction:column; gap:2px; scrollbar-width:thin; scrollbar-color:var(--edge) transparent; }
-  .fi { display:flex; gap:10px; padding:7px 8px; border-radius:8px; align-items:baseline; }
-  .fi.new { animation:slidein .5s ease; background:rgba(255,196,77,.08); }
-  @keyframes slidein { from{transform:translateY(-8px); opacity:0} to{transform:none; opacity:1} }
-  .fi .ic { width:20px; text-align:center; }
-  .fi .t { color:var(--stone); font-size:11px; margin-left:auto; white-space:nowrap; font-family:var(--f-num); font-size:14px; }
+  #feed { max-height:640px; overflow-y:auto; display:flex; flex-direction:column; scrollbar-width:thin; scrollbar-color:var(--edge) transparent; }
+  .fi { display:flex; gap:10px; padding:6px 4px; border-bottom:1px solid rgba(255,255,255,.05); align-items:baseline; font-size:13px; }
+  .fi.new { background:rgba(255,196,77,.08); }
   .fi b { color:var(--gold); font-weight:600; }
+  .fi .t { margin-left:auto; white-space:nowrap; font-family:var(--f-num); font-size:15px; color:var(--stone); }
+  .live { width:8px; height:8px; border-radius:99px; background:var(--green); display:inline-block; box-shadow:0 0 6px var(--green); }
 
-  .ret td { text-align:center; font-size:12.5px; padding:5px 4px; }
-  .ret th { text-align:center; }
-  .cell { border-radius:6px; padding:3px 0; display:block; font-variant-numeric:tabular-nums; color:#10130f; font-weight:600; }
-  .cell.muted { color:var(--stone); background:transparent !important; font-weight:400; }
+  .ret td { text-align:center; padding:4px 3px; font-size:12px; } .ret th { text-align:center; }
+  .cell { border-radius:4px; padding:2px 0; display:block; color:#10130f; font-weight:600; font-family:var(--f-num); font-size:15px; }
+  .cell.empty { color:var(--stone); background:transparent; font-weight:400; }
+  canvas { max-height:190px; }
 
-  @media (prefers-reduced-motion:reduce){ *{animation:none !important; transition:none !important} }
+  #drill { position:fixed; inset:0; background:rgba(10,11,12,.8); display:none; align-items:center; justify-content:center; padding:20px; z-index:10; }
+  #drill .inner { max-width:760px; width:100%; max-height:84vh; overflow:auto; }
+  .kv { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; margin:10px 0; }
+  .kv div { padding:6px 8px; }
+  .kv .label { display:block; }
+
+  #login { display:flex; min-height:92vh; align-items:center; justify-content:center; padding:20px; }
+  #login form { width:340px; display:flex; flex-direction:column; gap:12px; padding:22px; text-align:center; }
+  #dash { display:none; }
+  .muted { color:var(--stone); font-size:12.5px; }
+  .warn { color:var(--danger); font-size:12.5px; }
 </style></head>
 <body>
 <div id="login">
-  <form id="f" class="panel">
-    <img class="gob" src="https://gymscape.app/assets/adventure/goblin-idle.gif" alt="" onerror="this.style.display='none'">
-    <h1>GymScape</h1>
-    <p class="sub">Admin Console</p>
+  <form id="f" class="slab">
+    <h1 class="font-display">GymScape</h1>
+    <span class="label">Admin</span>
     <input id="u" placeholder="Username" autocomplete="username" />
     <input id="p" placeholder="Password" type="password" autocomplete="current-password" />
-    <button class="cta">Sign in</button>
-    <p id="err" style="color:var(--danger);font-size:13px"></p>
+    <button class="gold" style="padding:8px">Sign in</button>
+    <p id="err" class="warn"></p>
   </form>
 </div>
-<div id="dash">
-  <div class="topbar">
-    <div class="brand">
-      <img src="https://gymscape.app/assets/adventure/goblin-idle.gif" alt="" onerror="this.style.display='none'">
-      <h1>GymScape Admin</h1>
-    </div>
-    <div style="display:flex;gap:14px;align-items:center">
-      <div class="seg" id="range">
-        <button data-d="7">7d</button><button data-d="30" class="on">30d</button><button data-d="90">90d</button><button data-d="365">All</button>
-      </div>
-      <a onclick="logout()">Sign out</a>
-    </div>
-  </div>
-  <h2 style="margin-top:6px">The funnel <span class="muted" id="funnelLabel"></span></h2>
-  <div class="funnel" id="funnel"><p class="muted">Loading…</p></div>
-  <p class="muted" id="funnelNote" style="margin-top:6px"></p>
-  <h2>Subscribers <span class="muted" id="subsLabel"></span></h2>
-  <div class="panel" style="overflow-x:auto"><table id="subs"><tbody><tr><td class="muted">Loading…</td></tr></tbody></table><p class="muted" id="subsNote" style="margin:8px 0 0"></p></div>
 
-  <h2>Totals</h2>
+<div id="dash" class="wrap">
+  <div class="topbar">
+    <h1 class="font-display">GymScape</h1>
+    <div style="display:flex;gap:12px;align-items:center">
+      <div class="seg" id="range"><button data-d="7">7d</button><button data-d="30" class="on">30d</button><button data-d="90">90d</button><button data-d="365">All</button></div>
+      <a onclick="logout()" class="wall-text">Sign out</a>
+    </div>
+  </div>
+
   <div class="cards" id="cards"></div>
-  <h2>Today vs yesterday</h2><div class="cards" id="digest"></div>
-  <div class="split" style="margin-top:24px">
+
+  <h2>The questions <small id="qLabel"></small></h2>
+  <div class="answers" id="answers"></div>
+
+  <div class="split" style="margin-top:22px">
     <div>
-      <h2 style="margin-top:0">Trends <span class="muted" id="rangeLabel">(30d)</span></h2>
+      <h2 style="margin-top:0">Funnel <small id="funnelLabel"></small></h2>
+      <div class="slab"><div class="steps" id="funnel"></div></div>
+      <h2>Today <small>vs yesterday</small></h2>
+      <div class="cards" id="digest"></div>
+      <h2>Trends <small id="rangeLabel"></small></h2>
       <div class="grid2">
-        <div class="panel"><canvas id="cSign"></canvas></div>
-        <div class="panel"><canvas id="cActive"></canvas></div>
-        <div class="panel"><canvas id="cWork"></canvas></div>
-        <div class="panel"><canvas id="cGp"></canvas></div>
+        <div class="slab"><canvas id="cSign"></canvas></div>
+        <div class="slab"><canvas id="cActive"></canvas></div>
+        <div class="slab"><canvas id="cWork"></canvas></div>
+        <div class="slab"><canvas id="cGp"></canvas></div>
       </div>
-      <h2>Exercise breakdown <span class="muted" id="rangeLabel2"></span></h2>
-      <div class="panel"><canvas id="cEx" style="max-height:260px"></canvas></div>
     </div>
     <div>
-      <h2 style="margin-top:0"><span class="live"></span> Live activity</h2>
-      <div class="panel" id="feedPanel"><div id="feed"><p class="muted">Loading…</p></div></div>
+      <h2 style="margin-top:0"><span class="live"></span> Live <small>last 24h, refreshes</small></h2>
+      <div class="slab"><div id="feed"></div></div>
     </div>
   </div>
-  <h2>Retention <span class="seg" id="retSeg" style="margin-left:8px">
-    <button data-s="all" class="on">All</button><button data-s="named">Named</button><button data-s="members">Members</button>
-  </span></h2>
-  <div class="cards" id="retQuick"></div>
-  <div class="panel" style="margin-top:10px;overflow-x:auto">
-    <table class="ret" id="retGrid"><thead></thead><tbody></tbody></table>
-    <p class="muted" style="margin-top:8px">Weekly cohorts: % of each signup week still active N weeks later. Green = healthy, red = leaking.</p>
-  </div>
-  <h2>Members <span class="muted" id="memberCount"></span></h2>
-  <div class="panel">
+
+  <h2>Players <small id="playerCount"></small></h2>
+  <div class="slab">
     <div class="filters">
-      <input id="q" placeholder="Search username or id…" style="width:230px" />
-      <button class="fbtn" data-f="all">All</button>
-      <button class="fbtn" data-f="subs">Subscribers</button>
-      <button class="fbtn" data-f="active">Active 7d</button>
-      <button class="fbtn on" data-f="named">Named</button>
-      <button class="fbtn" data-f="dormant">Dormant 7d+</button>
+      <input id="q" placeholder="Search name or id" style="width:220px" />
+      <button class="fbtn on" data-f="all">All</button>
+      <button class="fbtn" data-f="member">Members</button>
+      <button class="fbtn" data-f="trial">Trials</button>
+      <button class="fbtn" data-f="lapsed">Lapsed</button>
+      <button class="fbtn" data-f="named">Named</button>
+      <button class="fbtn" data-f="guest">Guests</button>
+      <button class="fbtn" data-f="active7">Active 7d</button>
+      <button class="fbtn" data-f="dormant">Dormant 14d</button>
+      <span style="width:8px"></span>
+      <button class="fbtn pbtn on" data-p="any">Any platform</button>
+      <button class="fbtn pbtn" data-p="ios">iOS</button>
+      <button class="fbtn pbtn" data-p="android">Android</button>
     </div>
     <div style="overflow-x:auto"><table id="users"><thead><tr>
-      <th data-k="username">User</th><th data-k="created_at">Joined ↓</th><th data-k="last_active">Last active</th>
-      <th data-k="strength_xp">Str XP</th><th data-k="agility_xp">Agi XP</th><th data-k="coins">Gold</th><th data-k="sub_status">Sub</th>
+      <th data-k="username">Player</th><th data-k="tier">Tier</th><th data-k="platform">Platform</th><th data-k="signed_up">Signed up</th><th data-k="last_seen">Last seen</th>
+      <th data-k="level">Level</th><th data-k="reps">Reps</th><th data-k="workout_days">Days trained</th><th data-k="push_permission">Notifications</th><th data-k="providers">Sign-in</th><th data-k="paywall_viewed">Paywall</th><th data-k="app_version">Build</th>
     </tr></thead><tbody></tbody></table></div>
   </div>
-  <div class="grid2" style="margin-top:14px">
-    <div class="panel"><h2 style="margin-top:0">Campaign links <span class="muted">(clicks — installs live in App Store Connect)</span></h2><table id="campaigns"><tbody></tbody></table></div>
-    <div class="panel"><h2 style="margin-top:0">RevenueCat feed</h2><div id="rc"><p class="muted">Loading…</p></div></div>
-    <div class="panel"><h2 style="margin-top:0">Top events</h2><table id="events"><tbody></tbody></table></div>
+
+  <h2>Retention <span class="seg" id="retSeg" style="margin-left:6px"><button data-s="all" class="on">All</button><button data-s="named">Named</button><button data-s="members">Members</button></span></h2>
+  <div class="cards" id="retQuick"></div>
+  <div class="slab" style="margin-top:10px;overflow-x:auto"><table class="ret" id="retGrid"><thead></thead><tbody></tbody></table></div>
+
+  <div class="grid2" style="margin-top:22px">
+    <div><h2 style="margin-top:0">Exercises <small id="rangeLabel2"></small></h2><div class="slab"><canvas id="cEx" style="max-height:260px"></canvas></div></div>
+    <div><h2 style="margin-top:0">Clans</h2><div class="slab"><table id="clans"><tbody></tbody></table></div></div>
   </div>
   <div class="grid2" style="margin-top:14px">
-    <div class="panel"><h2 style="margin-top:0">Clans</h2><table id="clans"><tbody></tbody></table></div>
-    <div class="panel"><h2 style="margin-top:0">Paywall funnel</h2><table id="paywall"><tbody></tbody></table></div>
+    <div><h2 style="margin-top:0">Campaign links</h2><div class="slab"><table id="campaigns"><tbody></tbody></table></div></div>
+    <div><h2 style="margin-top:0">RevenueCat <small id="rcLabel"></small></h2><div class="slab" id="rc"></div></div>
   </div>
 </div>
-<div id="drill" onclick="if(event.target===this)this.style.display='none'"><div class="inner" id="drillBody"></div></div>
+<div id="drill" onclick="if(event.target===this)this.style.display='none'"><div class="inner slab" id="drillBody"></div></div>
+
 <script>
-// wrap dashboard content (not login) in .wrap for consistent gutters
-document.getElementById('dash').classList.add('wrap');
-
-Chart.defaults.font.family = 'Spectral, serif';
-Chart.defaults.font.size = 12;
-
+Chart.defaults.font.family = 'Spectral, serif'; Chart.defaults.font.size = 12;
 const API = 'https://hjhuirpegaghxvaycgrt.supabase.co/functions/v1/admin';
 const tok = () => localStorage.getItem('gs_admin_token');
 const api = (p) => fetch(API + p, { headers: { Authorization: 'Bearer ' + (tok() || '') } }).then(r => { if (r.status === 401) { logout(); throw new Error('unauthorized'); } return r.json(); });
 function logout(){ localStorage.removeItem('gs_admin_token'); clearInterval(FEEDTIMER); document.getElementById('dash').style.display='none'; document.getElementById('login').style.display='flex'; }
 
 const fmt = n => Number(n||0).toLocaleString();
-const ago = t => { if(!t) return '—'; const s=(Date.now()-new Date(t))/1e3;
-  return s<60 ? 'just now' : s<3600 ? Math.floor(s/60)+'m ago' : s<86400 ? Math.floor(s/3600)+'h ago' : Math.floor(s/86400)+'d ago'; };
-const exName = e => ({session:'legacy sessions',jumpingJacks:'jumping jacks',highKnees:'high knees',jumpRope:'jump rope',squats:'squats',pushUps:'push-ups',pushUpsClose:'push-ups (floor)',lunges:'lunges',bicepCurls:'bicep curls',weightedSquats:'weighted squats',weightedLunges:'weighted lunges',sitUps:'sit-ups',highPlank:'high plank',shoulderPress:'shoulder press'})[e]||e;
-let USERS=[], DAYS=30, FILTER='named', SORT={k:'created_at',dir:-1}, RET=null, RETSEG='all', FEEDTIMER=null, FEEDSINCE=null, SEEN=new Set();
+const pct = (a, b) => b > 0 ? Math.round(100 * a / b) + '%' : '–';
+const ago = t => { if(!t) return '–'; const s=(Date.now()-new Date(t))/1e3;
+  return s<60 ? 'now' : s<3600 ? Math.floor(s/60)+' min' : s<86400 ? Math.floor(s/3600)+'h' : Math.floor(s/86400)+'d'; };
+const dateS = t => t ? new Date(t).toLocaleDateString(undefined, { month:'short', day:'numeric', year: new Date(t).getFullYear()===new Date().getFullYear()?undefined:'2-digit' }) : '–';
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const EX = {session:'session',jumpingJacks:'jumping jacks',highKnees:'high knees',jumpRope:'jump rope',squats:'squats',pushUps:'push-ups',pushUpsClose:'push-ups',lunges:'lunges',bicepCurls:'bicep curls',weightedSquats:'weighted squats',weightedLunges:'weighted lunges',sitUps:'sit-ups',highPlank:'high plank',shoulderPress:'shoulder press',lateralRaises:'lateral raises',gobletSquats:'goblet squats',uprightRows:'upright rows',steps:'steps',wilderness:'wilderness steps',adjust:'ledger adjustment',merge:'account merge'};
+const exName = e => EX[e] || String(e||'').replace(/([A-Z])/g,' $1').toLowerCase();
+const nice = s => String(s||'').replace(/[_-]+/g,' ');
+// OSRS level curve (src/engine/xp.ts)
+const XP_TABLE = (() => { const t=[0,0]; let p=0; for (let l=1;l<99;l++){ p+=Math.floor(l+300*Math.pow(2,l/7)); t.push(Math.floor(p/4)); } return t; })();
+const levelFor = xp => { for (let l=99;l>=1;l--) if (xp >= XP_TABLE[l]) return l; return 1; };
 
-function card(l,v,extra=''){ return '<div class="card"><div class="v">'+v+extra+'</div><div class="l">'+l+'</div></div>'; }
-function delta(t,y){ const d=t-y; if(!y&&!t) return ''; const cls=d>=0?'up':'down'; return '<span class="delta '+cls+'">'+(d>=0?'+':'')+fmt(d)+'</span>'; }
-let CHARTS=[];
-const GRID='#2a2d33', TICK='#969cac';
+let USERS=[], DAYS=30, FILTER='all', PLAT='any', SORT={k:'last_seen',dir:-1}, RET=null, RETSEG='all', FEEDTIMER=null, SEEN=new Set(), CHARTS=[];
+const GRID='rgba(255,255,255,.06)', TICK='#969cac';
+
+function card(label, v, sub=''){ return '<div class="slab card"><div class="big">'+v+'</div><span class="label">'+label+'</span>'+(sub?'<div class="sub">'+sub+'</div>':'')+'</div>'; }
+function delta(t,y){ const d=t-y; if(!y&&!t) return ''; return '<span class="mid '+(d>=0?'ok':'bad')+'" style="margin-left:8px">'+(d>=0?'+':'')+fmt(d)+'</span>'; }
+function bar(label, n, base){ const p = base>0 ? Math.round(100*n/base) : 0;
+  return '<div class="bar"><span>'+label+'</span><div class="track"><div class="fill" style="width:'+p+'%"></div></div><span class="n">'+(base>0?p+'%':'–')+'</span></div>'; }
 function chart(id,label,series,key,color,type='line'){ CHARTS.push(new Chart(document.getElementById(id),{type,
-  data:{labels:series.map(s=>s.day.slice(5)),datasets:[{label,data:series.map(s=>s[key]),borderColor:color,backgroundColor:type==='bar'?color+'aa':color+'2b',fill:true,tension:.35,pointRadius:0,borderWidth:2}]},
+  data:{labels:series.map(s=>String(s.day).slice(5,10)),datasets:[{label,data:series.map(s=>s[key]),borderColor:color,backgroundColor:type==='bar'?color+'aa':color+'2b',fill:true,tension:.35,pointRadius:0,borderWidth:2}]},
   options:{plugins:{legend:{labels:{color:TICK,boxWidth:12}}},scales:{x:{ticks:{color:TICK,maxTicksLimit:9},grid:{color:GRID}},y:{ticks:{color:TICK,precision:0},grid:{color:GRID},beginAtZero:true}}}})); }
 
-// ---------- members table ----------
+// ---------- the questions ----------
+function renderAnswers(i){
+  const p=i.push, d=i.delivery, pr=i.prefs||{}, a=i.accounts, pw=i.paywall;
+  const notAsked = i.cohort - p.asked;
+  const el = document.getElementById('answers');
+  document.getElementById('qLabel').textContent = DAYS===365 ? 'all time, by signup date' : 'players who signed up in the last '+DAYS+' days';
+  el.innerHTML =
+    // 1. notifications within 24h
+    '<div class="slab answer"><div class="q">Allowed notifications within 24 hours</div>'+
+      '<div class="a"><span class="big">'+pct(p.allowed_24h, i.cohort)+'</span><span class="of">of '+fmt(i.cohort)+' new players</span></div>'+
+      '<div class="rows">'+bar('Allowed', p.allowed, i.cohort)+bar('Denied', p.denied, i.cohort)+bar('Never asked', notAsked, i.cohort)+'</div>'+
+      '<div class="muted" style="margin-top:6px">'+fmt(p.allowed_24h)+' allowed and '+fmt(p.denied_24h)+' denied inside the first day. Push devices overall: '+fmt(p.all_with_token)+' of '+fmt(p.all_users)+' accounts.</div></div>'+
+    // 2. delivery
+    '<div class="slab answer"><div class="q">Notifications delivered</div>'+
+      '<div class="a"><span class="big">'+pct(d.sent, d.sent + d.failed)+'</span><span class="of">of '+fmt(d.sent + d.failed)+' device sends accepted by Apple or Google</span></div>'+
+      '<div class="rows">'+bar('Accepted', d.sent, d.sent + d.failed)+bar('Refused', d.failed, d.sent + d.failed)+bar('Opened', d.opened, d.sent)+'</div>'+
+      '<div class="muted" style="margin-top:6px">'+fmt(d.logged)+' pushes scheduled'+(d.unknown?' ('+fmt(d.unknown)+' before outcome logging began)':'')+
+      (Object.keys(d.fail_reasons||{}).length?'. Refusals: '+Object.entries(d.fail_reasons).map(([k,v])=>k+' x'+v).join(', '):'')+
+      '. By kind: '+(Object.entries(d.by_kind||{}).map(([k,v])=>nice(k)+' '+v).join(', ')||'none')+'.</div></div>'+
+    // 3. prefs
+    '<div class="slab answer"><div class="q">Notification types switched on</div>'+
+      '<div class="a"><span class="big">'+fmt(pr.base)+'</span><span class="of">players can receive pushes (have a device token)</span></div>'+
+      '<div class="rows">'+bar('Bounty', pr.bounty, pr.base)+bar('Gathering', pr.gather, pr.base)+bar('Clan', pr.clan, pr.base)+bar('Weekly recap', pr.weekly, pr.base)+bar('Come back', pr.retention, pr.base)+bar('Workout time', pr.workout, pr.base)+'</div></div>'+
+    // 4. accounts
+    '<div class="slab answer"><div class="q">Signed in with Apple or Google</div>'+
+      '<div class="a"><span class="big">'+pct(a.signed_in, a.cohort)+'</span><span class="of">of '+fmt(a.cohort)+' new players</span></div>'+
+      '<div class="rows">'+bar('Apple', a.apple, a.cohort)+bar('Google', a.google, a.cohort)+bar('Username set', a.named, a.cohort)+bar('Still a guest', a.cohort - a.signed_in, a.cohort)+'</div>'+
+      '<div class="muted" style="margin-top:6px">All time: '+fmt(a.all_signed_in)+' signed in and '+fmt(a.all_named)+' named of '+fmt(a.all_users)+' accounts.</div></div>'+
+    // 5. paywall
+    '<div class="slab answer"><div class="q">Saw the paywall, then</div>'+
+      '<div class="a"><span class="big">'+pct(pw.completed, pw.viewers)+'</span><span class="of">of '+fmt(pw.viewers)+' viewers subscribed</span></div>'+
+      '<div class="steps"><div class="slab2 step"><div class="big">'+fmt(pw.viewers)+'</div><span class="label">Saw it</span></div><span class="arrow">'+pct(pw.started,pw.viewers)+' &rsaquo;</span>'+
+      '<div class="slab2 step"><div class="big">'+fmt(pw.started)+'</div><span class="label">Tapped subscribe</span></div><span class="arrow">'+pct(pw.completed,pw.started)+' &rsaquo;</span>'+
+      '<div class="slab2 step"><div class="big">'+fmt(pw.completed)+'</div><span class="label">Paid</span></div></div>'+
+      '<div class="rows" style="margin-top:8px">'+Object.entries(pw.by_trigger||{}).map(([t,v])=>bar(nice(t), v.viewers, pw.viewers)).join('')+'</div>'+
+      '<div class="muted" style="margin-top:6px">'+fmt(pw.dismissed)+' closed it without tapping. Bars: which screen showed it.</div></div>';
+}
+
+// ---------- players ----------
+const tierTag = u => '<span class="tag '+u.tier+'">'+u.tier+'</span>'+(u.row_kind!=='user'?' <span class="tag '+u.row_kind+'">'+u.row_kind+'</span>':'');
+const permTag = u => '<span class="tag '+(u.push_permission==='allowed'?'allowed':u.push_permission==='denied'?'denied':'')+'">'+u.push_permission+'</span>'+(u.push_decided_hours!=null?' <span class="muted">after '+(u.push_decided_hours<0.05?'right away':u.push_decided_hours<1?Math.round(u.push_decided_hours*60)+' min':u.push_decided_hours<48?Math.round(u.push_decided_hours)+'h':Math.round(u.push_decided_hours/24)+'d')+'</span>':'');
+const who = u => u.username ? esc(u.username) : (u.row_kind==='user' ? '<span class="stone">guest</span>' : '<span class="stone">anonymous</span>');
 function applyUsers(){
   const q=(document.getElementById('q').value||'').toLowerCase();
-  let list=USERS.filter(u=>(u.username||'').toLowerCase().includes(q)||u.id.includes(q));
-  const active7=u=>u.last_active&&(Date.now()-new Date(u.last_active))<7*864e5;
-  if(FILTER==='subs') list=list.filter(u=>u.sub_status);
-  if(FILTER==='active') list=list.filter(active7);
-  if(FILTER==='dormant') list=list.filter(u=>!active7(u));
+  const now=Date.now();
+  let list=USERS.filter(u=>(u.username||'').toLowerCase().includes(q)||String(u.id).toLowerCase().includes(q));
+  const seen=u=>u.last_seen?now-new Date(u.last_seen):Infinity;
+  if(FILTER==='member') list=list.filter(u=>u.tier==='member');
+  if(FILTER==='trial') list=list.filter(u=>u.tier==='trial');
+  if(FILTER==='lapsed') list=list.filter(u=>u.tier==='lapsed');
   if(FILTER==='named') list=list.filter(u=>u.username);
+  if(FILTER==='guest') list=list.filter(u=>u.row_kind==='user'&&u.is_anonymous);
+  if(FILTER==='active7') list=list.filter(u=>seen(u)<7*864e5);
+  if(FILTER==='dormant') list=list.filter(u=>seen(u)>14*864e5);
+  if(PLAT!=='any') list=list.filter(u=>(u.platform||'').includes(PLAT));
   list.sort((a,b)=>{const k=SORT.k;const av=a[k]??'',bv=b[k]??'';return (av<bv?-1:av>bv?1:0)*SORT.dir;});
-  document.getElementById('memberCount').textContent='('+list.length+' of '+USERS.length+')';
+  document.getElementById('playerCount').textContent=list.length+' of '+USERS.length;
   document.querySelector('#users tbody').innerHTML = list.map(u =>
-    '<tr class="u" onclick="drill(\''+u.id+'\')"><td>'+(u.username||'<span class="muted">anonymous</span>')+'</td>'+
-    '<td>'+(u.created_at? new Date(u.created_at).toLocaleDateString():'—')+'</td><td>'+ago(u.last_active)+'</td>'+
-    '<td>'+fmt(u.strength_xp)+'</td><td>'+fmt(u.agility_xp)+'</td><td>'+fmt(u.coins)+'</td>'+
-    '<td>'+(u.sub_status?'<span class="pill '+u.sub_status+'">'+u.sub_status+'</span>':'<span class="pill">free</span>')+'</td></tr>').join('');
+    '<tr class="u" onclick="drill(\''+esc(u.id)+'\',\''+esc(u.row_kind)+'\')"><td>'+who(u)+'</td><td>'+tierTag(u)+'</td><td>'+(u.platform||'–')+'</td>'+
+    '<td>'+dateS(u.signed_up)+'</td><td>'+ago(u.last_seen)+'</td>'+
+    '<td><span class="n">'+u.level+'</span> <span class="muted">'+levelFor(u.strength_xp)+' / '+levelFor(u.agility_xp)+'</span></td>'+
+    '<td><span class="n">'+fmt(u.reps)+'</span></td><td><span class="n">'+fmt(u.workout_days)+'</span></td>'+
+    '<td>'+permTag(u)+'</td><td>'+(u.providers||(u.row_kind==='user'?'guest':'–'))+'</td>'+
+    '<td>'+(u.paywall_viewed?fmt(u.paywall_viewed)+'x'+(u.subscribe_started?' <span class="goldc">tapped</span>':''):'<span class="stone">no</span>')+'</td>'+
+    '<td class="muted">'+(u.app_version?u.app_version+' '+(u.app_sha||''):'–')+'</td></tr>').join('') || '<tr><td class="muted" colspan="12">Nobody matches.</td></tr>';
 }
-document.querySelectorAll('#users th').forEach(th=>th.onclick=()=>{ const k=th.dataset.k;
-  SORT = SORT.k===k ? {k,dir:-SORT.dir} : {k,dir:-1};
-  document.querySelectorAll('#users th').forEach(x=>x.textContent=x.textContent.replace(/ [↓↑]/,''));
-  th.textContent=th.textContent.replace(/ [↓↑]/,'')+(SORT.dir<0?' ↓':' ↑'); applyUsers(); });
-document.querySelectorAll('.fbtn').forEach(b=>b.onclick=()=>{ FILTER=b.dataset.f;
-  document.querySelectorAll('.fbtn').forEach(x=>x.classList.toggle('on',x===b)); applyUsers(); });
+document.querySelectorAll('#users th').forEach(th=>th.onclick=()=>{ const k=th.dataset.k; SORT = SORT.k===k ? {k,dir:-SORT.dir} : {k,dir:-1}; applyUsers(); });
+document.querySelectorAll('.fbtn:not(.pbtn)').forEach(b=>b.onclick=()=>{ FILTER=b.dataset.f; document.querySelectorAll('.fbtn:not(.pbtn)').forEach(x=>x.classList.toggle('on',x===b)); applyUsers(); });
+document.querySelectorAll('.pbtn').forEach(b=>b.onclick=()=>{ PLAT=b.dataset.p; document.querySelectorAll('.pbtn').forEach(x=>x.classList.toggle('on',x===b)); applyUsers(); });
+document.getElementById('q').oninput=applyUsers;
 
-// ---------- drill ----------
-async function drill(id){
-  const d = await api('/api/user?id='+id);
-  const p = d.profile||{};
-  document.getElementById('drillBody').innerHTML = '<h1 style="font-size:18px">'+(p.username||'anonymous')+'</h1>'+
-    '<p class="muted" style="font-size:12px">'+p.id+'</p>'+
-    '<p style="margin:8px 0">'+fmt(p.strength_xp)+' str xp · '+fmt(p.agility_xp)+' agi xp · '+fmt(p.coins)+' gp'+
-    (d.clan?' · clan: '+d.clan:'')+(p.sub_status?' · <span class="pill '+p.sub_status+'">'+p.sub_status+'</span>':'')+'</p>'+
-    '<table><tbody>'+(d.timeline||[]).map(t=>'<tr><td class="muted" style="white-space:nowrap">'+new Date(t.created_at).toLocaleString()+'</td><td>'+t.kind+'</td><td>'+exName(t.label)+'</td><td class="muted">'+(t.detail||'')+'</td></tr>').join('')+'</tbody></table>';
+// ---------- one player ----------
+async function drill(id, kind){
+  const u = USERS.find(x=>x.id===id) || {};
+  const body = document.getElementById('drillBody');
+  const prefs = u.prefs||{};
+  const kv = (l,v) => '<div class="slab2"><span class="label">'+l+'</span>'+v+'</div>';
+  body.innerHTML = '<h1 class="font-display">'+(u.username?esc(u.username):(kind==='user'?'Guest':'Anonymous subscriber'))+'</h1><div class="muted">'+esc(id)+'</div>'+
+    '<div class="kv">'+kv('Tier', tierTag(u)+(u.sub_product?' <span class="muted">'+nice(u.sub_product.replace('gymscape_',''))+(u.sub_expires?', until '+dateS(u.sub_expires):'')+'</span>':''))+
+    kv('Signed up', dateS(u.signed_up))+kv('Last seen', ago(u.last_seen)+' ago')+kv('Platform', (u.platform||'–')+(u.app_version?' <span class="muted">'+u.app_version+'</span>':''))+
+    kv('Sign-in', u.providers||(kind==='user'?'guest':'–'))+kv('Level', '<span class="mid">'+(u.level||'–')+'</span> <span class="muted">str '+levelFor(u.strength_xp||0)+' agi '+levelFor(u.agility_xp||0)+'</span>')+
+    kv('Gold', '<span class="mid">'+fmt(u.coins)+'</span>')+kv('Reps', '<span class="mid">'+fmt(u.reps)+'</span> <span class="muted">'+fmt(u.workout_days)+' days</span>')+kv('Steps', '<span class="mid">'+fmt(u.steps)+'</span>')+
+    kv('Clan', u.clan?esc(u.clan):'–')+kv('Notifications', permTag(u))+
+    kv('Pushes', fmt(u.pushes_logged)+' scheduled, '+fmt(u.pushes_sent)+' accepted, '+fmt(u.pushes_failed)+' refused, '+fmt(u.pushes_opened)+' opened')+
+    kv('Types on', u.has_prefs?Object.entries(prefs).filter(([,v])=>v).map(([k])=>nice(k)).join(', ')||'none':'defaults')+
+    kv('Paywall', u.paywall_viewed?fmt(u.paywall_viewed)+' views, '+fmt(u.subscribe_started)+' taps, '+fmt(u.subscribe_completed)+' paid':'never shown')+'</div>'+
+    '<div class="label">Timeline</div><div id="tl" class="muted">Loading</div>';
   document.getElementById('drill').style.display='flex';
+  if (kind!=='user') { document.getElementById('tl').textContent='No account here to show a timeline for.'; return; }
+  try {
+    const d = await api('/api/user?id='+id);
+    document.getElementById('tl').outerHTML = '<table><tbody>'+(d.timeline||[]).map(t=>'<tr><td class="muted">'+new Date(t.created_at).toLocaleString()+'</td><td>'+nice(t.kind)+'</td><td>'+exName(t.label)+'</td><td class="muted">'+esc(t.detail||'')+'</td></tr>').join('')+'</tbody></table>';
+  } catch { document.getElementById('tl').textContent='Timeline unavailable.'; }
 }
 
-// ---------- live feed ----------
-const ICONS={signup:'✨',workout:'💪',unlock:'🔓',gold:'🪙',event:'⚡'};
-function feedRow(f,isNew){ return '<div class="fi'+(isNew?' new':'')+'"><span class="ic">'+(ICONS[f.kind]||'•')+'</span>'+
-  '<span><b>'+f.who+'</b> '+f.what.replace(/\b(session|jumpingJacks|highKnees|jumpRope|squats|pushUps|pushUpsClose|lunges|bicepCurls|weightedSquats|weightedLunges|sitUps|highPlank|shoulderPress)\b/g,m=>exName(m))+'</span><span class="t">'+ago(f.created_at)+'</span></div>'; }
+// ---------- live feed: sentences, not event names ----------
+function sentence(f){
+  const p=f.props||{}, n=f.name;
+  const app = id => nice(String(id||'an app').replace(/^shielded-\d+$/,'a shielded app'));
+  switch(n){
+    case 'signup': return 'joined GymScape';
+    case 'reps': return 'did '+fmt(p.reps)+' '+exName(p.exercise)+' (+'+fmt(p.xp)+' '+p.skill+' xp)';
+    case 'spend': return 'spent '+fmt(p.gp)+' gp'+(p.on?' on '+nice(p.on):'');
+    case 'permission_granted': return 'allowed '+({notifications:'notifications',health:'step tracking',screen_time:'Screen Time',camera:'the camera'}[p.kind]||nice(p.kind))+(p.first===false?' (changed their mind)':'');
+    case 'permission_denied': return 'denied '+({notifications:'notifications',health:'step tracking',screen_time:'Screen Time',camera:'the camera'}[p.kind]||nice(p.kind))+(p.first===false?' (turned it off)':'');
+    case 'unlock_completed': return 'unlocked '+app(p.appId)+' for '+fmt(p.minutes)+' min ('+nice(p.method)+')';
+    case 'shield_shown': return 'hit the shield on '+fmt(p.count)+' of '+fmt(p.total)+' apps';
+    case 'fight_started': return 'started fighting a '+nice(p.monster)+' with '+exName(p.exercise);
+    case 'fight_session': return fmt(p.reps)+' '+exName(p.exercise)+' against a '+nice(p.monster);
+    case 'fight_fled': return 'fled from a '+nice(p.monster);
+    case 'monster_killed': return 'killed a '+nice(p.monster);
+    case 'rare_drop': return 'got a rare drop: '+nice(p.item);
+    case 'gather_started': return 'started gathering '+nice(p.activity)+(p.bank?' with '+fmt(p.bank)+' banked steps':'');
+    case 'gather_claimed': return 'collected '+fmt(p.haul)+' '+nice(p.activity)+' over '+fmt(p.steps)+' steps';
+    case 'gem_found': return 'found a '+nice(p.gem||p.item||'gem');
+    case 'walk_completed': return 'walked '+fmt(p.steps)+' steps (+'+fmt(p.xp)+' agility xp)';
+    case 'steps_converted': return 'turned '+fmt(p.steps)+' steps into '+(p.to==='xp'?fmt(p.xp)+' xp':fmt(p.gold)+' gp');
+    case 'steps_spend_opened': return 'opened the step bank ('+fmt(p.balance)+' banked)';
+    case 'level_up': return 'reached '+p.skill+' level '+p.level;
+    case 'gear_equipped': return 'equipped '+nice(String(p.item||'').replace(/^gear_/,''));
+    case 'item_crafted': return 'crafted '+nice(p.item)+(p.qty>1?' x'+p.qty:'');
+    case 'forge_started': return 'started the forge';
+    case 'potion_bought': return 'bought a potion ('+nice(p.skill)+')';
+    case 'loot_crate_bought': return 'bought a loot crate';
+    case 'bounty_crate_claimed': return 'claimed the daily bounty crate';
+    case 'char_style_bought': return 'bought a character style';
+    case 'clan_created': return 'founded a clan';
+    case 'clan_joined': return 'joined a clan'+(p.via?' via '+nice(p.via):'');
+    case 'clan_left': return 'left their clan';
+    case 'clan_fight_entered': return 'entered a clan fight'+(p.monster?' against a '+nice(p.monster):'');
+    case 'clan_fight_over': return 'finished a clan fight'+(p.result?' ('+nice(p.result)+')':'');
+    case 'lobby_chat_sent': return 'chatted in a fight lobby';
+    case 'clan_visibility_set': return 'made their clan '+(p.public?'public':'private');
+    case 'paywall_viewed': return 'saw the paywall ('+nice(p.trigger)+')';
+    case 'paywall_dismissed': return 'closed the paywall ('+nice(p.trigger)+')';
+    case 'subscribe_started': return 'tapped subscribe ('+nice(p.package)+')';
+    case 'subscribe_completed': return 'subscribed ('+nice(p.package)+')';
+    case 'restore_success': return 'restored a purchase';
+    case 'onboarding_step_viewed': return 'onboarding: '+nice(p.step);
+    case 'tutorial_beat': return 'tutorial: '+nice(p.beat);
+    case 'tutorial_loot_equipped': return 'equipped the tutorial loot';
+    case 'onboarding_username_set': return 'picked a username';
+    case 'onboarding_signin_done': return 'signed in during onboarding';
+    case 'onboarding_signin_skipped': return 'skipped sign-in during onboarding';
+    case 'onboarding_completed': return 'finished onboarding';
+    case 'onboarding_restored': return 'restored a previous account during onboarding';
+    case 'signin_completed': return 'signed in with '+nice(p.provider)+(p.merged_guest?' (guest progress merged)':'');
+    case 'workout_completed': return 'finished a workout: '+fmt(p.reps)+' '+exName(p.exercise);
+    case 'push_opened': return 'opened a push ('+nice(p.kind||p.screen)+')';
+    case 'push_received': return 'received a push in the app ('+nice(p.kind||p.screen)+')';
+    case 'push_ask_accepted': return 'said yes to the notifications ask ('+nice(p.reason)+')';
+    case 'push_ask_dismissed': return 'said not now to the notifications ask ('+nice(p.reason)+')';
+    case 'notify_setting_changed': return (p.on?'turned on ':'turned off ')+nice(p.setting)+' notifications';
+    case 'screentime_setup_opened': return 'opened Screen Time setup';
+    case 'screentime_setup_step': return 'Screen Time setup: '+nice(p.step);
+    case 'wild_collected': return 'collected in the wilderness';
+    case 'wild_home_teleport': return 'teleported home from the wilderness';
+    case 'adventure_restored': return 'restored their adventure save';
+    case 'xp_row_dropped': return 'had an xp row rejected by the server ('+esc(p.exercise)+', '+fmt(p.amount)+' xp)';
+    case 'coin_row_dropped': return 'had a gold row rejected by the server ('+fmt(p.amount)+')';
+    default: { const extra = Object.entries(p).filter(([,v])=>v!==null&&typeof v!=='object').map(([k,v])=>k+' '+v).join(', '); return nice(n)+(extra?' ('+esc(extra)+')':''); }
+  }
+}
+function feedRow(f,isNew){ return '<div class="fi'+(isNew?' new':'')+'"><span><b>'+(f.who?esc(f.who):'a guest')+'</b> '+sentence(f)+'</span><span class="t">'+ago(f.created_at)+'</span></div>'; }
 async function pollFeed(initial=false){
   try {
-    const since = initial ? new Date(Date.now()-24*3600*1000).toISOString() : FEEDSINCE;
-    const items = await api('/api/feed?since='+encodeURIComponent(since));
+    const since = new Date(Date.now()-(initial?24*3600:12*60)*1000).toISOString();
+    const items = await api('/api/feed2?since='+encodeURIComponent(since));
     const el = document.getElementById('feed');
-    if (initial) { el.innerHTML = items.length ? items.map(f=>{SEEN.add(f.kind+f.who+f.created_at);return feedRow(f,false);}).join('') : '<p class="muted">Quiet for the last 24h…</p>'; }
-    else {
-      const fresh = items.filter(f=>!SEEN.has(f.kind+f.who+f.created_at));
-      if (fresh.length) {
-        fresh.forEach(f=>SEEN.add(f.kind+f.who+f.created_at));
-        el.insertAdjacentHTML('afterbegin', fresh.map(f=>feedRow(f,true)).join(''));
-      }
-    }
-    FEEDSINCE = new Date(Date.now()-10*60*1000).toISOString(); // overlap window; SEEN dedupes
+    const key = f => f.kind+f.user_id+f.name+f.created_at;
+    if (initial) { el.innerHTML = items.length ? items.map(f=>{SEEN.add(key(f));return feedRow(f,false);}).join('') : '<p class="muted">Quiet for the last 24 hours.</p>'; }
+    else { const fresh = items.filter(f=>!SEEN.has(key(f))); if (fresh.length) { fresh.forEach(f=>SEEN.add(key(f))); el.insertAdjacentHTML('afterbegin', fresh.map(f=>feedRow(f,true)).join('')); } }
   } catch { /* next tick */ }
 }
 
 // ---------- retention ----------
-function heat(p){ if(p===null||isNaN(p)) return 'var(--panel2)';
-  const g=Math.round(40+(p/100)*140), r=Math.round(180-(p/100)*120); return 'rgba('+r+','+g+',70,.72)'; }
+function heat(p){ if(p===null||isNaN(p)) return 'transparent'; const g=Math.round(40+(p/100)*140), r=Math.round(180-(p/100)*120); return 'rgba('+r+','+g+',70,.72)'; }
 function renderRetention(){
   if(!RET) return;
   const q=(RET.quick||{})[RETSEG]||{};
-  document.getElementById('retQuick').innerHTML =
-    card('D1 retention', q.d1!==null&&q.d1!==undefined?q.d1+'%':'—')+
-    card('D7 retention', q.d7!==null&&q.d7!==undefined?q.d7+'%':'—')+
-    card('D30 retention', q.d30!==null&&q.d30!==undefined?q.d30+'%':'—')+
-    card('Cohort base (D1)', fmt(q.d1_base));
-  const rows=(RET.cohorts||{})[RETSEG]||[];
-  const maxK=8;
-  document.querySelector('#retGrid thead').innerHTML='<tr><th style="text-align:left">Cohort week</th><th>Size</th>'+Array.from({length:maxK},(_,k)=>'<th>W'+k+'</th>').join('')+'</tr>';
-  document.querySelector('#retGrid tbody').innerHTML = rows.length ? rows.map(r=>{
-    const wk={}; (r.weeks||[]).forEach(w=>wk[w.k]=w.n);
-    return '<tr><td style="text-align:left;white-space:nowrap">'+r.week+'</td><td>'+r.size+'</td>'+
-      Array.from({length:maxK},(_,k)=>{ if(!(k in wk)) return '<td><span class="cell muted">·</span></td>';
-        const p=r.size?Math.round(100*wk[k]/r.size):0;
-        return '<td><span class="cell" style="background:'+heat(p)+'">'+p+'%</span></td>'; }).join('')+'</tr>';
-  }).join('') : '<tr><td class="muted" colspan="10">No one in this segment yet.</td></tr>';
+  const v = x => x!==null&&x!==undefined ? x+'%' : '–';
+  document.getElementById('retQuick').innerHTML = card('Back the next day', v(q.d1))+card('Back after a week', v(q.d7))+card('Back after a month', v(q.d30))+card('Players measured', fmt(q.d1_base));
+  const rows=(RET.cohorts||{})[RETSEG]||[]; const maxK=8;
+  document.querySelector('#retGrid thead').innerHTML='<tr><th style="text-align:left">Signup week</th><th>Players</th>'+Array.from({length:maxK},(_,k)=>'<th>wk '+k+'</th>').join('')+'</tr>';
+  document.querySelector('#retGrid tbody').innerHTML = rows.length ? rows.map(r=>{ const wk={}; (r.weeks||[]).forEach(w=>wk[w.k]=w.n);
+    return '<tr><td style="text-align:left">'+r.week+'</td><td>'+r.size+'</td>'+Array.from({length:maxK},(_,k)=>{ if(!(k in wk)) return '<td><span class="cell empty">·</span></td>'; const p=r.size?Math.round(100*wk[k]/r.size):0; return '<td><span class="cell" style="background:'+heat(p)+'">'+p+'%</span></td>'; }).join('')+'</tr>'; }).join('')
+    : '<tr><td class="muted" colspan="10">Nobody in this segment yet.</td></tr>';
 }
-document.querySelectorAll('#retSeg button').forEach(b=>b.onclick=()=>{ RETSEG=b.dataset.s;
-  document.querySelectorAll('#retSeg button').forEach(x=>x.classList.toggle('on',x===b)); renderRetention(); });
+document.querySelectorAll('#retSeg button').forEach(b=>b.onclick=()=>{ RETSEG=b.dataset.s; document.querySelectorAll('#retSeg button').forEach(x=>x.classList.toggle('on',x===b)); renderRetention(); });
 
-// ---------- summary ----------
-function fstage(l,v){ return '<div class="fstage"><div class="v">'+fmt(v)+'</div><div class="l">'+l+'</div></div>'; }
-function farrow(from,to){ const p = from>0 ? Math.round(100*to/from) : null;
-  return '<div class="farrow"><span class="pct">'+(p===null?'–':p+'%')+'</span><span class="ar">→</span></div>'; }
+// ---------- funnel + summary ----------
+function stage(l,v){ return '<div class="slab2 step"><div class="big">'+fmt(v)+'</div><span class="label">'+l+'</span></div>'; }
+function arrow(a,b){ return '<span class="arrow">'+pct(b,a)+' &rsaquo;</span>'; }
 async function loadFunnel(){
-  const f = await api('/api/funnel?days='+(DAYS===365?36500:DAYS));
-  if (!f || f.error) return;
-  document.getElementById('funnelLabel').textContent = DAYS===365 ? '(all time, by signup cohort)' : '('+DAYS+'d signup cohort)';
-  document.getElementById('funnel').innerHTML =
-    fstage('Link clicks', f.clicks) + farrow(f.clicks, f.installs) +
-    fstage('Installs', f.installs) + farrow(f.installs, f.named) +
-    fstage('Named account', f.named) + farrow(f.named, f.worked) +
-    fstage('First workout', f.worked) + farrow(f.worked, f.trial) +
-    fstage('Trial', f.trial) + farrow(f.trial, f.paying) +
-    fstage('Paying', f.paying);
-  const notes = [];
-  if (f.all_paying > f.paying) notes.push((f.all_paying - f.paying) + ' paying member(s) outside this cohort window');
-  if (f.all_paying > 0) notes.push('see Subscribers below for every paying id, linked or not');
-  notes.push('Clicks come from gymscape.app/go links; store downloads live in App Store Connect / Play Console.');
-  document.getElementById('funnelNote').textContent = notes.join(' · ');
-}
-// Every subscription RevenueCat has reported, whether or not it maps to an
-// account here (Will 2026-09-04: "it says no one is paying").
-async function loadSubs(){
-  const rows = await api('/api/subs');
-  if (!rows || rows.error) return;
-  const entitled = rows.filter(r => r.entitled);
-  const linked = entitled.filter(r => r.kind === 'linked').length;
-  document.getElementById('subsLabel').textContent = '('+entitled.length+' paying · '+linked+' linked to a current account)';
-  const who = r => r.username ? r.username : (r.kind === 'anonymous' ? 'store purchase, never signed in' : r.kind === 'legacy' ? 'old-app account (pre-rework id)' : 'account without a name');
-  const tag = r => r.kind === 'linked' ? '<span class="tag ok">linked</span>' : r.kind === 'legacy' ? '<span class="tag">legacy</span>' : '<span class="tag">rc-anon</span>';
-  const env = r => r.environment === 'SANDBOX' ? ' <span class="tag">sandbox</span>' : '';
-  const store = r => ({ APP_STORE: 'App Store', PLAY_STORE: 'Play', RC_BILLING: 'Web' })[r.store] || (r.store || '');
-  document.querySelector('#subs tbody').innerHTML =
-    '<tr><th style="text-align:left">Who</th><th>Status</th><th>Plan</th><th>Store</th><th>Price</th><th>Renews / ends</th><th>Id</th></tr>' +
-    (rows.length ? rows.map(r => '<tr'+(r.entitled?'':' style="opacity:.55"')+'><td style="text-align:left;white-space:nowrap">'+who(r)+' '+tag(r)+env(r)+'</td>'+
-      '<td>'+r.status+(r.period==='TRIAL'?' (trial)':'')+'</td><td>'+String(r.product||'').replace('gymscape_','').replace('_prod','').replace('pro_web_','web ')+'</td>'+
-      '<td>'+store(r)+'</td><td>'+(r.price!=null?'$'+Number(r.price).toFixed(2):'–')+'</td><td>'+(r.expires_at?new Date(r.expires_at).toLocaleDateString():'–')+'</td>'+
-      '<td class="muted" style="font-family:monospace;font-size:11px">'+String(r.id).replace('$RCAnonymousID:','rc:').slice(0,16)+'</td></tr>').join('')
-    : '<tr><td class="muted">No subscriptions reported yet.</td></tr>');
-  const notes = [];
-  const legacy = entitled.filter(r => r.kind === 'legacy').length, anon = entitled.filter(r => r.kind === 'anonymous').length;
-  if (legacy) notes.push(legacy+' paying on an old-app account id that no longer exists in this database');
-  if (anon) notes.push(anon+' paying through the store without ever signing in (RevenueCat anonymous id)');
-  if (legacy || anon) notes.push('these count in Members (paying) and MRR but cannot show as Pro on a member row until the subscription transfers to a current account: Restore Purchases in the new app does that (the webhook re-keys on TRANSFER)');
-  document.getElementById('subsNote').textContent = notes.join(' · ');
+  const f = await api('/api/funnel?days='+(DAYS===365?36500:DAYS)); if (!f || f.error) return;
+  document.getElementById('funnelLabel').textContent = DAYS===365 ? 'all time' : 'players who signed up in the last '+DAYS+' days';
+  document.getElementById('funnel').innerHTML = stage('Link clicks',f.clicks)+arrow(f.clicks,f.installs)+stage('Installs',f.installs)+arrow(f.installs,f.named)+stage('Named',f.named)+arrow(f.named,f.worked)+stage('First workout',f.worked)+arrow(f.worked,f.trial)+stage('Trial',f.trial)+arrow(f.trial,f.paying)+stage('Paying',f.paying);
 }
 async function loadRc(){
-  const r = await api('/api/rc');
-  if (!r || r.error) return;
-  const el = document.getElementById('rc');
-  if (!r.total) { el.innerHTML = '<p class="warn">No webhook events received yet. Check the webhook config in RevenueCat.</p>'; return; }
-  const ignored = (r.ignored_products||[]).length ? '<p class="warn">Ignored product ids: '+r.ignored_products.join(', ')+' (not in the webhook whitelist)</p>' : '';
-  el.innerHTML = '<p class="muted">'+fmt(r.total)+' events · last '+ago(r.last_at)+'</p>' + ignored +
-    (r.recent||[]).slice(0,8).map(e => '<div class="rc-row"><span>'+e.type+'</span><span class="muted">'+String(e.product||'').split(':')[0]+'</span>'+
-      '<span class="tag'+(e.linked?' ok':'')+'">'+(e.linked?'linked':'rc-anon')+'</span><span class="muted" style="margin-left:auto">'+ago(e.at)+'</span></div>').join('');
+  const r = await api('/api/rc'); if (!r || r.error) return;
+  document.getElementById('rcLabel').textContent = r.total ? fmt(r.total)+' webhook events, last '+ago(r.last_at)+' ago' : '';
+  const warn = !r.total ? '<p class="warn">No webhook events yet.</p>' : (r.ignored_products||[]).length ? '<p class="warn">Ignored product ids: '+r.ignored_products.join(', ')+'</p>' : '';
+  document.getElementById('rc').innerHTML = warn + '<table><tbody>'+(r.recent||[]).slice(0,8).map(e=>'<tr><td>'+nice(e.type).toLowerCase()+'</td><td class="muted">'+String(e.product||'').split(':')[0].replace('gymscape_','')+'</td><td>'+({APP_STORE:'App Store',PLAY_STORE:'Play',RC_BILLING:'Web'}[e.store]||e.store||'')+'</td><td class="muted" style="text-align:right">'+ago(e.at)+' ago</td></tr>').join('')+'</tbody></table>';
 }
 async function loadSummary(){
-  const d = await api('/api/summary?days='+DAYS);
-  if (d.error) return;
-  loadFunnel().catch(()=>{}); loadRc().catch(()=>{}); loadSubs().catch(()=>{});
-  document.getElementById('rangeLabel').textContent='('+DAYS+'d)';
-  document.getElementById('rangeLabel2').textContent='('+DAYS+'d)';
+  const d = await api('/api/summary?days='+DAYS); if (d.error) return;
+  loadFunnel().catch(()=>{}); loadRc().catch(()=>{});
+  api('/api/insights?days='+(DAYS===365?36500:DAYS)).then(renderAnswers).catch(()=>{});
+  api('/api/users').then(rows=>{ USERS=(rows||[]).map(u=>({ ...u, level: levelFor(u.strength_xp||0)+levelFor(u.agility_xp||0) })); applyUsers(); }).catch(()=>{});
+  document.getElementById('rangeLabel').textContent = DAYS+' days'; document.getElementById('rangeLabel2').textContent = DAYS+' days';
   const t=d.totals, td=d.today, yd=d.yesterday;
   document.getElementById('cards').innerHTML =
-    card('Named members', fmt(t.named)) + card('All accounts', fmt(t.members)) + card('DAU', fmt(t.dau)) + card('WAU', fmt(t.wau)) + card('MAU', fmt(t.mau)) +
-    card('Members (paying)', fmt(t.subs)) + card('MRR', '$'+fmt(t.mrr)) + card('Clans', fmt(t.clans)) + card('Push devices', fmt(t.push_devices));
+    card('Players', fmt(t.members), fmt(t.named)+' named')+card('Members', fmt(t.subs), 'paying now')+card('MRR', '$'+fmt(t.mrr))+
+    card('Active today', fmt(t.dau))+card('Active 7 days', fmt(t.wau))+card('Active 30 days', fmt(t.mau))+card('Push devices', fmt(t.push_devices))+card('Clans', fmt(t.clans));
   document.getElementById('digest').innerHTML =
-    card('Signups', fmt(td.signups), delta(td.signups, yd.signups)) +
-    card('Active', fmt(td.active), delta(td.active, yd.active)) +
-    card('Workouts', fmt(td.workouts), delta(td.workouts, yd.workouts)) +
-    card('Reps', fmt(td.reps), delta(td.reps, yd.reps)) +
-    card('GP earned', fmt(td.gp), delta(td.gp, yd.gp)) +
-    card('Unlocks', fmt(td.unlocks), delta(td.unlocks, yd.unlocks)) +
-    card('Steps', fmt(td.steps), delta(td.steps, yd.steps));
+    card('Signups', fmt(td.signups)+delta(td.signups, yd.signups))+card('Active', fmt(td.active)+delta(td.active, yd.active))+card('Workouts', fmt(td.workouts)+delta(td.workouts, yd.workouts))+
+    card('Reps', fmt(td.reps)+delta(td.reps, yd.reps))+card('Gold earned', fmt(td.gp)+delta(td.gp, yd.gp))+card('Unlocks', fmt(td.unlocks)+delta(td.unlocks, yd.unlocks))+card('Steps', fmt(td.steps)+delta(td.steps, yd.steps));
   CHARTS.forEach(c=>c.destroy()); CHARTS=[];
-  chart('cSign','Signups',d.series,'signups','#ffc44d','bar');
-  chart('cActive','Active users',d.series,'active','#41d18a');
-  chart('cWork','Workouts',d.series,'workouts','#ffd84d');
-  chart('cGp','GP earned',d.series,'gp','#ffa64d');
+  chart('cSign','Signups',d.series,'signups','#ffc44d','bar'); chart('cActive','Active players',d.series,'active','#57d05a'); chart('cWork','Workouts',d.series,'workouts','#ffd84d'); chart('cGp','Gold earned',d.series,'gp','#ffa64d');
   const ex=d.exercises||[];
-  CHARTS.push(new Chart(document.getElementById('cEx'),{type:'bar',
-    data:{labels:ex.map(e=>exName(e.exercise)),datasets:[{label:'Reps',data:ex.map(e=>e.reps),backgroundColor:'#ffc44daa'},{label:'Users',data:ex.map(e=>e.users),backgroundColor:'#6aa9c4aa'}]},
+  CHARTS.push(new Chart(document.getElementById('cEx'),{type:'bar',data:{labels:ex.map(e=>exName(e.exercise)),datasets:[{label:'Reps',data:ex.map(e=>e.reps),backgroundColor:'#ffc44daa'},{label:'Players',data:ex.map(e=>e.users),backgroundColor:'#969cacaa'}]},
     options:{indexAxis:'y',plugins:{legend:{labels:{color:TICK,boxWidth:12}}},scales:{x:{ticks:{color:TICK,precision:0},grid:{color:GRID}},y:{ticks:{color:'#eceef4'},grid:{display:false}}}}}));
-  USERS=d.users||[]; applyUsers();
-  api('/api/paywall?days='+DAYS).then(rows => {
-    const el = document.querySelector('#paywall tbody');
-    el.innerHTML = (rows&&rows.length) ? '<tr><th style="text-align:left">Trigger</th><th>Viewed</th><th>Started</th><th>Subscribed</th><th>CVR</th></tr>' + rows.map(r =>
-      '<tr><td>'+r.trigger+(r.variant!=='-'?' <span class="muted">('+r.variant+')</span>':'')+'</td><td style="text-align:center">'+fmt(r.viewed)+'</td><td style="text-align:center">'+fmt(r.started)+'</td><td style="text-align:center">'+fmt(r.completed)+'</td><td style="text-align:center">'+(r.viewed>0?Math.round(100*r.completed/r.viewed)+'%':'—')+'</td></tr>').join('')
-      : '<tr><td class="muted">No paywall views yet — flips on with the paywall flag</td></tr>';
-  }).catch(()=>{});
-  api('/api/campaigns?days='+DAYS).then(c => {
-    document.querySelector('#campaigns tbody').innerHTML = (c.campaigns||[]).map(x =>
-      '<tr><td>/go/'+x.campaign+'</td><td style="text-align:right">'+fmt(x.clicks)+' clicks</td><td class="muted" style="text-align:right">'+ago(x.last)+'</td></tr>').join('')
-      || '<tr><td class="muted">No campaign clicks yet — share a gymscape.app/go/… link</td></tr>';
-  }).catch(()=>{});
-  document.querySelector('#events tbody').innerHTML = (d.top_events||[]).map(e=>'<tr><td>'+e.name+'</td><td style="text-align:right">'+fmt(e.n)+'</td></tr>').join('') || '<tr><td class="muted">No events yet — ships with the next app build</td></tr>';
-  document.querySelector('#clans tbody').innerHTML = (d.clans_list||[]).map(c=>'<tr><td>'+c.name+'</td><td>'+fmt(c.member_count)+' members</td><td style="text-align:right">'+fmt(c.total_reps)+' reps</td></tr>').join('') || '<tr><td class="muted">No clans yet</td></tr>';
+  api('/api/campaigns?days='+DAYS).then(c => { document.querySelector('#campaigns tbody').innerHTML = (c.campaigns||[]).map(x=>'<tr><td>/go/'+esc(x.campaign)+'</td><td style="text-align:right"><span class="n">'+fmt(x.clicks)+'</span> clicks</td><td class="muted" style="text-align:right">'+ago(x.last)+' ago</td></tr>').join('') || '<tr><td class="muted">No clicks yet.</td></tr>'; }).catch(()=>{});
+  document.querySelector('#clans tbody').innerHTML = (d.clans_list||[]).map(c=>'<tr><td>'+esc(c.name)+'</td><td><span class="n">'+fmt(c.member_count)+'</span> members</td><td style="text-align:right"><span class="n">'+fmt(c.total_reps)+'</span> reps</td></tr>').join('') || '<tr><td class="muted">No clans yet.</td></tr>';
 }
-document.querySelectorAll('#range button').forEach(b=>b.onclick=()=>{ DAYS=Number(b.dataset.d);
-  document.querySelectorAll('#range button').forEach(x=>x.classList.toggle('on',x===b)); loadSummary(); });
-document.getElementById('q').oninput=applyUsers;
+document.querySelectorAll('#range button').forEach(b=>b.onclick=()=>{ DAYS=Number(b.dataset.d); document.querySelectorAll('#range button').forEach(x=>x.classList.toggle('on',x===b)); loadSummary(); });
 
 async function boot(){
   try { await loadSummary(); } catch { return; }
-  document.getElementById('login').style.display='none';
-  document.getElementById('dash').style.display='block';
-  RET = await api('/api/retention'); renderRetention();
+  document.getElementById('login').style.display='none'; document.getElementById('dash').style.display='block';
+  api('/api/retention').then(r=>{ RET=r; renderRetention(); }).catch(()=>{});
   await pollFeed(true);
   clearInterval(FEEDTIMER); FEEDTIMER=setInterval(()=>pollFeed(false), 8000);
-  setInterval(loadSummary, 120000); // background refresh every 2 min
+  setInterval(loadSummary, 120000);
 }
 document.getElementById('f').onsubmit = async (e) => {
   e.preventDefault();
-  const r = await fetch(API + '/login', { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ username: document.getElementById('u').value, password: document.getElementById('p').value }) });
+  const r = await fetch(API + '/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username: document.getElementById('u').value, password: document.getElementById('p').value }) });
   const d = await r.json();
-  if (r.ok && d.token) { localStorage.setItem('gs_admin_token', d.token); boot(); }
-  else document.getElementById('err').textContent = d.error || 'Login failed';
+  if (r.ok && d.token) { localStorage.setItem('gs_admin_token', d.token); boot(); } else document.getElementById('err').textContent = d.error || 'Login failed';
 };
 if (tok()) boot();
 </script></body></html>
