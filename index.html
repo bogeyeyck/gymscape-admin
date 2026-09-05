@@ -210,8 +210,8 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;
 const EX = {session:'session',jumpingJacks:'jumping jacks',highKnees:'high knees',jumpRope:'jump rope',squats:'squats',pushUps:'push-ups',pushUpsClose:'push-ups',lunges:'lunges',bicepCurls:'bicep curls',weightedSquats:'weighted squats',weightedLunges:'weighted lunges',sitUps:'sit-ups',highPlank:'high plank',shoulderPress:'shoulder press',lateralRaises:'lateral raises',gobletSquats:'goblet squats',uprightRows:'upright rows',steps:'steps',wilderness:'wilderness steps',adjust:'ledger adjustment',merge:'account merge'};
 const exName = e => EX[e] || String(e||'').replace(/([A-Z])/g,' $1').toLowerCase();
 const nice = s => String(s||'').replace(/[_-]+/g,' ');
-// OSRS level curve (src/engine/xp.ts)
-const XP_TABLE = (() => { const t=[0,0]; let p=0; for (let l=1;l<99;l++){ p+=Math.floor(l+300*Math.pow(2,l/7)); t.push(Math.floor(p/4)); } return t; })();
+// GymScape level curve (mirror of src/engine/xp.ts, 2026-09-05): xp(L) = a*(L-1)^1.15*G^(L-1), level 2 = 100, level 99 = 10M
+const XP_TABLE = (() => { const P=1.15, G=Math.pow(1e7/(100*Math.pow(98,P)),1/97), A=100/G; const t=[0,0]; for (let l=2;l<=99;l++) t.push(Math.round(A*Math.pow(l-1,P)*Math.pow(G,l-1))); t[99]=1e7; return t; })();
 const levelFor = xp => { for (let l=99;l>=1;l--) if (xp >= XP_TABLE[l]) return l; return 1; };
 
 let USERS=[], DAYS=30, FILTER='all', PLAT='any', SORT={k:'last_seen',dir:-1}, RET=null, RETSEG='all', FEEDTIMER=null, SEEN=new Set(), CHARTS=[];
