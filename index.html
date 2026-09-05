@@ -136,6 +136,9 @@
   <h2>The questions <small id="qLabel"></small></h2>
   <div class="answers" id="answers"></div>
 
+  <h2>Starting quests <small id="questsLabel"></small></h2>
+  <div class="slab" id="quests"></div>
+
   <div class="split" style="margin-top:22px">
     <div>
       <h2 style="margin-top:0">Funnel <small id="funnelLabel"></small></h2>
@@ -263,6 +266,20 @@ function renderAnswers(i){
       '<div class="muted" style="margin-top:6px">'+fmt(pw.dismissed)+' closed it without tapping. Bars: which screen showed it.</div></div>';
 }
 
+// ---------- starting quests ----------
+const QUEST_TITLES = { chicken:'Kill a chicken', stone_pickaxe:'Craft a stone pickaxe', agility_5:'Train Agility to 5', copper:'Mine first copper', leather:'Craft leather armor', bronze_bar:'Smelt a bronze bar', bronze_arrows:'Fletch bronze arrows', oak_bow:'Fletch an oak bow', bronze_sword:'Smith a bronze sword' };
+const hours = h => h==null ? '–' : h < 1 ? Math.round(h*60)+' min' : h < 48 ? Math.round(h)+'h' : Math.round(h/24)+'d';
+async function loadQuests(){
+  const q = await api('/api/quests?days='+(DAYS===365?36500:DAYS)); if (!q || q.error) return;
+  const base = Math.max(q.cohort, 1);
+  document.getElementById('questsLabel').textContent = fmt(q.cohort)+' players finished onboarding in this window · '+fmt(q.any_quest)+' touched a quest · '+fmt(q.retired)+' hid the track';
+  document.getElementById('quests').innerHTML = '<table><tbody><tr><th style="text-align:left">Quest</th><th style="text-align:left;width:34%">Completed</th><th>Started</th><th>Skipped</th><th>Median time from onboarding</th></tr>'+
+    (q.quests||[]).map((r,i)=>'<tr><td style="text-align:left">'+(i+1)+'. '+(QUEST_TITLES[r.id]||nice(r.id))+'</td>'+
+      '<td><div class="bar" style="grid-template-columns:1fr 46px"><div class="track"><div class="fill" style="width:'+Math.round(100*r.completed/base)+'%"></div></div><span class="n">'+fmt(r.completed)+'</span></div></td>'+
+      '<td><span class="n">'+fmt(r.started)+'</span></td><td><span class="n">'+fmt(r.skipped)+'</span></td><td class="muted">'+hours(r.median_hours)+'</td></tr>').join('')+'</tbody></table>'+
+    '<p class="muted" style="margin-top:6px">Bars are share of the onboarding cohort. Started = tapped Start on the explain screen; a quest can complete without a Start (they did it on their own).</p>';
+}
+
 // ---------- players ----------
 const tierTag = u => '<span class="tag '+u.tier+'">'+u.tier+'</span>'+(u.row_kind!=='user'?' <span class="tag '+u.row_kind+'">'+u.row_kind+'</span>':'');
 const permTag = u => '<span class="tag '+(u.push_permission==='allowed'?'allowed':u.push_permission==='denied'?'denied':'')+'">'+u.push_permission+'</span>'+(u.push_decided_hours!=null?' <span class="muted">after '+(u.push_decided_hours<0.05?'right away':u.push_decided_hours<1?Math.round(u.push_decided_hours*60)+' min':u.push_decided_hours<48?Math.round(u.push_decided_hours)+'h':Math.round(u.push_decided_hours/24)+'d')+'</span>':'');
@@ -383,6 +400,11 @@ function sentence(f){
     case 'wild_collected': return 'collected in the wilderness';
     case 'wild_home_teleport': return 'teleported home from the wilderness';
     case 'adventure_restored': return 'restored their adventure save';
+    case 'starter_quest_started': return 'started the quest: '+(QUEST_TITLES[p.quest]||nice(p.quest)).toLowerCase();
+    case 'starter_quest_completed': return 'completed the quest: '+(QUEST_TITLES[p.quest]||nice(p.quest)).toLowerCase();
+    case 'starter_quest_skipped': return 'skipped the quest: '+(QUEST_TITLES[p.quest]||nice(p.quest)).toLowerCase();
+    case 'starter_quests_retired': return 'hid the starting quests';
+    case 'camera_privacy_accepted': return 'accepted the camera explanation';
     case 'xp_row_dropped': return 'had an xp row rejected by the server ('+esc(p.exercise)+', '+fmt(p.amount)+' xp)';
     case 'coin_row_dropped': return 'had a gold row rejected by the server ('+fmt(p.amount)+')';
     default: { const extra = Object.entries(p).filter(([,v])=>v!==null&&typeof v!=='object').map(([k,v])=>k+' '+v).join(', '); return nice(n)+(extra?' ('+esc(extra)+')':''); }
@@ -433,6 +455,7 @@ async function loadSummary(){
   const d = await api('/api/summary?days='+DAYS); if (d.error) return;
   loadFunnel().catch(()=>{}); loadRc().catch(()=>{});
   api('/api/insights?days='+(DAYS===365?36500:DAYS)).then(renderAnswers).catch(()=>{});
+  loadQuests().catch(()=>{});
   api('/api/users').then(rows=>{ USERS=(rows||[]).map(u=>({ ...u, level: levelFor(u.strength_xp||0)+levelFor(u.agility_xp||0) })); applyUsers(); }).catch(()=>{});
   document.getElementById('rangeLabel').textContent = DAYS+' days'; document.getElementById('rangeLabel2').textContent = DAYS+' days';
   const t=d.totals, td=d.today, yd=d.yesterday;
