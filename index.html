@@ -356,6 +356,7 @@ function sentence(f){
   const app = id => nice(String(id||'an app').replace(/^shielded-\d+$/,'a shielded app'));
   switch(n){
     case 'signup': return 'joined GymScape';
+    case 'client_error': return 'hit an error on a frame <span class="muted">'+esc(String(p.message||p.context||''))+'</span>';
     case 'reps': return 'did '+fmt(p.reps)+' '+exName(p.exercise)+' (+'+fmt(p.xp)+' '+p.skill+' xp)';
     case 'spend': return 'spent '+fmt(p.gp)+' gp'+(p.on?' on '+nice(p.on):'');
     case 'permission_granted': return 'allowed '+({notifications:'notifications',health:'step tracking',screen_time:'Screen Time',camera:'the camera'}[p.kind]||nice(p.kind))+(p.first===false?' (changed their mind)':'');
