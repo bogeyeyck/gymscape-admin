@@ -127,6 +127,7 @@
     <h1 class="font-display">GymScape</h1>
     <div style="display:flex;gap:12px;align-items:center">
       <div class="seg" id="range"><button data-d="7">7d</button><button data-d="30" class="on">30d</button><button data-d="90">90d</button><button data-d="365">All</button></div>
+      <button class="fbtn" id="internalBtn" title="Accounts marked as your own phones are left out of every number unless this is on">Show my devices</button>
       <a onclick="logout()" class="wall-text">Sign out</a>
     </div>
   </div>
@@ -177,7 +178,7 @@
       <button class="fbtn pbtn" data-p="android">Android</button>
     </div>
     <div style="overflow-x:auto"><table id="users"><thead><tr>
-      <th data-k="username">Player</th><th data-k="tier">Tier</th><th data-k="platform">Platform</th><th data-k="signed_up">Signed up</th><th data-k="last_seen">Last seen</th>
+      <th data-k="username">Player</th><th data-k="tier">Tier</th><th data-k="platform">Platform</th><th data-k="same_phone">Same phone as</th><th data-k="signed_up">Signed up</th><th data-k="last_seen">Last seen</th>
       <th data-k="level">Level</th><th data-k="reps">Reps</th><th data-k="workout_days">Days trained</th><th data-k="push_permission">Notifications</th><th data-k="providers">Sign-in</th><th data-k="paywall_viewed">Paywall</th><th data-k="app_version">Build</th>
     </tr></thead><tbody></tbody></table></div>
   </div>
@@ -201,7 +202,8 @@
 Chart.defaults.font.family = 'Spectral, serif'; Chart.defaults.font.size = 12;
 const API = 'https://hjhuirpegaghxvaycgrt.supabase.co/functions/v1/admin';
 const tok = () => localStorage.getItem('gs_admin_token');
-const api = (p) => fetch(API + p, { headers: { Authorization: 'Bearer ' + (tok() || '') } }).then(r => { if (r.status === 401) { logout(); throw new Error('unauthorized'); } return r.json(); });
+let INTERNAL = false;   // include Will's own devices in the numbers
+const api = (p) => fetch(API + (INTERNAL ? p + (p.includes('?') ? '&' : '?') + 'internal=1' : p), { headers: { Authorization: 'Bearer ' + (tok() || '') } }).then(r => { if (r.status === 401) { logout(); throw new Error('unauthorized'); } return r.json(); });
 function logout(){ localStorage.removeItem('gs_admin_token'); clearInterval(FEEDTIMER); document.getElementById('dash').style.display='none'; document.getElementById('login').style.display='flex'; }
 
 const fmt = n => Number(n||0).toLocaleString();
@@ -288,6 +290,7 @@ function applyUsers(){
   const q=(document.getElementById('q').value||'').toLowerCase();
   const now=Date.now();
   let list=USERS.filter(u=>(u.username||'').toLowerCase().includes(q)||String(u.id).toLowerCase().includes(q));
+  if(!INTERNAL) list=list.filter(u=>!u.is_internal);
   const seen=u=>u.last_seen?now-new Date(u.last_seen):Infinity;
   if(FILTER==='member') list=list.filter(u=>u.tier==='member');
   if(FILTER==='trial') list=list.filter(u=>u.tier==='trial');
@@ -306,7 +309,7 @@ function applyUsers(){
     '<td><span class="n">'+fmt(u.reps)+'</span></td><td><span class="n">'+fmt(u.workout_days)+'</span></td>'+
     '<td>'+permTag(u)+'</td><td>'+(u.providers||(u.row_kind==='user'?'guest':'–'))+'</td>'+
     '<td>'+(u.paywall_viewed?fmt(u.paywall_viewed)+'x'+(u.subscribe_started?' <span class="goldc">tapped</span>':''):'<span class="stone">no</span>')+'</td>'+
-    '<td class="muted">'+(u.app_version?u.app_version+' '+(u.app_sha||''):'–')+'</td></tr>').join('') || '<tr><td class="muted" colspan="12">Nobody matches.</td></tr>';
+    '<td class="muted">'+(u.app_version?u.app_version+' '+(u.app_sha||''):'–')+'</td></tr>').join('') || '<tr><td class="muted" colspan="13">Nobody matches.</td></tr>';
 }
 document.querySelectorAll('#users th').forEach(th=>th.onclick=()=>{ const k=th.dataset.k; SORT = SORT.k===k ? {k,dir:-SORT.dir} : {k,dir:-1}; applyUsers(); });
 document.querySelectorAll('.fbtn:not(.pbtn)').forEach(b=>b.onclick=()=>{ FILTER=b.dataset.f; document.querySelectorAll('.fbtn:not(.pbtn)').forEach(x=>x.classList.toggle('on',x===b)); applyUsers(); });
@@ -327,7 +330,9 @@ async function drill(id, kind){
     kv('Clan', u.clan?esc(u.clan):'–')+kv('Notifications', permTag(u))+
     kv('Pushes', fmt(u.pushes_logged)+' scheduled, '+fmt(u.pushes_sent)+' accepted, '+fmt(u.pushes_failed)+' refused, '+fmt(u.pushes_opened)+' opened')+
     kv('Types on', u.has_prefs?Object.entries(prefs).filter(([,v])=>v).map(([k])=>nice(k)).join(', ')||'none':'defaults')+
-    kv('Paywall', u.paywall_viewed?fmt(u.paywall_viewed)+' views, '+fmt(u.subscribe_started)+' taps, '+fmt(u.subscribe_completed)+' paid':'never shown')+'</div>'+
+    kv('Paywall', u.paywall_viewed?fmt(u.paywall_viewed)+' views, '+fmt(u.subscribe_started)+' taps, '+fmt(u.subscribe_completed)+' paid':'never shown')+
+    (kind==='user'?kv('Device', (u.device?'phone '+esc(u.device):'no push token')+(u.same_phone?', also used by '+esc(u.same_phone):'')+
+      ' <button class="fbtn" style="margin-left:8px" onclick="markInternal(\''+esc(id)+'\','+(u.is_internal?'false':'true')+')">'+(u.is_internal?'Not my phone':'This is my phone')+'</button>'):'')+'</div>'+
     '<div class="label">Timeline</div><div id="tl" class="muted">Loading</div>';
   document.getElementById('drill').style.display='flex';
   if (kind!=='user') { document.getElementById('tl').textContent='No account here to show a timeline for.'; return; }
@@ -335,6 +340,14 @@ async function drill(id, kind){
     const d = await api('/api/user?id='+id);
     document.getElementById('tl').outerHTML = '<table><tbody>'+(d.timeline||[]).map(t=>'<tr><td class="muted">'+new Date(t.created_at).toLocaleString()+'</td><td>'+nice(t.kind)+'</td><td>'+exName(t.label)+'</td><td class="muted">'+esc(t.detail||'')+'</td></tr>').join('')+'</tbody></table>';
   } catch { document.getElementById('tl').textContent='Timeline unavailable.'; }
+}
+
+async function markInternal(id, flag){
+  // marks this account and every account that ever shared its phone; the numbers reload without them
+  const r = await fetch(API + '/api/internal', { method: 'POST', headers: { Authorization: 'Bearer ' + (tok() || ''), 'Content-Type': 'application/json' }, body: JSON.stringify({ id, flag }) }).then(r=>r.json()).catch(()=>null);
+  if (!r || r.error) { alert('Could not update: ' + (r && r.error || 'network')); return; }
+  document.getElementById('drill').style.display='none';
+  SEEN=new Set(); loadSummary().then(()=>pollFeed(true));
 }
 
 // ---------- live feed: sentences, not event names ----------
@@ -473,6 +486,7 @@ async function loadSummary(){
   api('/api/campaigns?days='+DAYS).then(c => { document.querySelector('#campaigns tbody').innerHTML = (c.campaigns||[]).map(x=>'<tr><td>/go/'+esc(x.campaign)+'</td><td style="text-align:right"><span class="n">'+fmt(x.clicks)+'</span> clicks</td><td class="muted" style="text-align:right">'+ago(x.last)+' ago</td></tr>').join('') || '<tr><td class="muted">No clicks yet.</td></tr>'; }).catch(()=>{});
   document.querySelector('#clans tbody').innerHTML = (d.clans_list||[]).map(c=>'<tr><td>'+esc(c.name)+'</td><td><span class="n">'+fmt(c.member_count)+'</span> members</td><td style="text-align:right"><span class="n">'+fmt(c.total_reps)+'</span> reps</td></tr>').join('') || '<tr><td class="muted">No clans yet.</td></tr>';
 }
+document.getElementById('internalBtn').onclick=()=>{ INTERNAL=!INTERNAL; document.getElementById('internalBtn').classList.toggle('on',INTERNAL); document.getElementById('internalBtn').textContent=INTERNAL?'Showing my devices':'Show my devices'; SEEN=new Set(); loadSummary().then(()=>pollFeed(true)); };
 document.querySelectorAll('#range button').forEach(b=>b.onclick=()=>{ DAYS=Number(b.dataset.d); document.querySelectorAll('#range button').forEach(x=>x.classList.toggle('on',x===b)); loadSummary(); });
 
 async function boot(){
