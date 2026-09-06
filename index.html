@@ -160,11 +160,11 @@
     </div>
   </div>
 
-  <h2>Players <small id="playerCount"></small></h2>
+  <h2>Players <small id="playerCount"></small></h2><p class="muted" style="margin:2px 0 8px">A player has claimed a username. Guests are sessions that have not, and sit under their own filter.</p>
   <div class="slab">
     <div class="filters">
       <input id="q" placeholder="Search name or id" style="width:220px" />
-      <button class="fbtn on" data-f="all">All</button>
+      <button class="fbtn on" data-f="all">All players</button>
       <button class="fbtn" data-f="member">Members</button>
       <button class="fbtn" data-f="trial">Trials</button>
       <button class="fbtn" data-f="lapsed">Lapsed</button>
@@ -296,7 +296,9 @@ function applyUsers(){
   if(FILTER==='trial') list=list.filter(u=>u.tier==='trial');
   if(FILTER==='lapsed') list=list.filter(u=>u.tier==='lapsed');
   if(FILTER==='named') list=list.filter(u=>u.username);
-  if(FILTER==='guest') list=list.filter(u=>u.row_kind==='user'&&u.is_anonymous);
+  // players = claimed (a username); guests live under their own filter and stay out of the others
+  if(FILTER==='guest') list=list.filter(u=>u.row_kind==='user'&&!u.username);
+  else list=list.filter(u=>u.row_kind!=='user'||u.username);
   if(FILTER==='active7') list=list.filter(u=>seen(u)<7*864e5);
   if(FILTER==='dormant') list=list.filter(u=>seen(u)>14*864e5);
   if(PLAT!=='any') list=list.filter(u=>(u.platform||'').includes(PLAT));
@@ -474,13 +476,14 @@ async function loadSummary(){
   document.getElementById('rangeLabel').textContent = DAYS+' days'; document.getElementById('rangeLabel2').textContent = DAYS+' days';
   const t=d.totals, td=d.today, yd=d.yesterday;
   document.getElementById('cards').innerHTML =
-    card('Players', fmt(t.members), fmt(t.named)+' named')+card('Members', fmt(t.subs), 'paying now')+card('MRR', '$'+fmt(t.mrr))+
-    card('Active today', fmt(t.dau))+card('Active 7 days', fmt(t.wau))+card('Active 30 days', fmt(t.mau))+card('Push devices', fmt(t.push_devices))+card('Clans', fmt(t.clans));
+    card('Players', fmt(t.players ?? t.named), 'claimed a username')+card('Guests', fmt(t.guests ?? t.anon_installs), fmt(t.guests_tried ?? t.anon_tryers)+' tried a workout, '+fmt(t.guests_7d ?? 0)+' active this week')+
+    card('Members', fmt(t.subs), 'paying now')+card('MRR', '$'+fmt(t.mrr))+
+    card('Active today', fmt(t.players_dau ?? t.dau), (t.dau-(t.players_dau??t.dau))+' guests')+card('Active 7 days', fmt(t.players_wau ?? t.wau), (t.wau-(t.players_wau??t.wau))+' guests')+card('Active 30 days', fmt(t.players_mau ?? t.mau), (t.mau-(t.players_mau??t.mau))+' guests')+card('Clans', fmt(t.clans));
   document.getElementById('digest').innerHTML =
-    card('Signups', fmt(td.signups)+delta(td.signups, yd.signups))+card('Active', fmt(td.active)+delta(td.active, yd.active))+card('Workouts', fmt(td.workouts)+delta(td.workouts, yd.workouts))+
+    card('Claimed', fmt(td.signups)+delta(td.signups, yd.signups))+card('New guests', fmt(td.guests ?? 0)+delta(td.guests ?? 0, yd.guests ?? 0))+card('Active', fmt(td.active)+delta(td.active, yd.active))+card('Workouts', fmt(td.workouts)+delta(td.workouts, yd.workouts))+
     card('Reps', fmt(td.reps)+delta(td.reps, yd.reps))+card('Gold earned', fmt(td.gp)+delta(td.gp, yd.gp))+card('Unlocks', fmt(td.unlocks)+delta(td.unlocks, yd.unlocks))+card('Steps', fmt(td.steps)+delta(td.steps, yd.steps));
   CHARTS.forEach(c=>c.destroy()); CHARTS=[];
-  chart('cSign','Signups',d.series,'signups','#ffc44d','bar'); chart('cActive','Active players',d.series,'active','#57d05a'); chart('cWork','Workouts',d.series,'workouts','#ffd84d'); chart('cGp','Gold earned',d.series,'gp','#ffa64d');
+  chart('cSign','Claimed accounts',d.series,'signups','#ffc44d','bar'); chart('cActive','Active players',d.series,'active','#57d05a'); chart('cWork','Workouts',d.series,'workouts','#ffd84d'); chart('cGp','Gold earned',d.series,'gp','#ffa64d');
   const ex=d.exercises||[];
   CHARTS.push(new Chart(document.getElementById('cEx'),{type:'bar',data:{labels:ex.map(e=>exName(e.exercise)),datasets:[{label:'Reps',data:ex.map(e=>e.reps),backgroundColor:'#ffc44daa'},{label:'Players',data:ex.map(e=>e.users),backgroundColor:'#969cacaa'}]},
     options:{indexAxis:'y',plugins:{legend:{labels:{color:TICK,boxWidth:12}}},scales:{x:{ticks:{color:TICK,precision:0},grid:{color:GRID}},y:{ticks:{color:'#eceef4'},grid:{display:false}}}}}));
