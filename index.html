@@ -306,8 +306,9 @@ function applyUsers(){
   document.getElementById('playerCount').textContent=list.length+' of '+USERS.length;
   document.querySelector('#users tbody').innerHTML = list.map(u =>
     '<tr class="u" onclick="drill(\''+esc(u.id)+'\',\''+esc(u.row_kind)+'\')"><td>'+who(u)+'</td><td>'+tierTag(u)+'</td><td>'+(u.platform||'–')+'</td>'+
+    '<td class="muted">'+(u.same_phone?esc(u.same_phone):'–')+'</td>'+
     '<td>'+dateS(u.signed_up)+'</td><td>'+ago(u.last_seen)+'</td>'+
-    '<td><span class="n">'+u.level+'</span> <span class="muted">'+levelFor(u.strength_xp)+' / '+levelFor(u.agility_xp)+'</span></td>'+
+    '<td><span class="n">'+u.level+'</span></td>'+
     '<td><span class="n">'+fmt(u.reps)+'</span></td><td><span class="n">'+fmt(u.workout_days)+'</span></td>'+
     '<td>'+permTag(u)+'</td><td>'+(u.providers||(u.row_kind==='user'?'guest':'–'))+'</td>'+
     '<td>'+(u.paywall_viewed?fmt(u.paywall_viewed)+'x'+(u.subscribe_started?' <span class="goldc">tapped</span>':''):'<span class="stone">no</span>')+'</td>'+
@@ -327,7 +328,7 @@ async function drill(id, kind){
   body.innerHTML = '<h1 class="font-display">'+(u.username?esc(u.username):(kind==='user'?'Guest':'Anonymous subscriber'))+'</h1><div class="muted">'+esc(id)+'</div>'+
     '<div class="kv">'+kv('Tier', tierTag(u)+(u.sub_product?' <span class="muted">'+nice(u.sub_product.replace('gymscape_',''))+(u.sub_expires?', until '+dateS(u.sub_expires):'')+'</span>':''))+
     kv('Signed up', dateS(u.signed_up))+kv('Last seen', ago(u.last_seen)+' ago')+kv('Platform', (u.platform||'–')+(u.app_version?' <span class="muted">'+u.app_version+'</span>':''))+
-    kv('Sign-in', u.providers||(kind==='user'?'guest':'–'))+kv('Level', '<span class="mid">'+(u.level||'–')+'</span> <span class="muted">str '+levelFor(u.strength_xp||0)+' agi '+levelFor(u.agility_xp||0)+'</span>')+
+    kv('Sign-in', u.providers||(kind==='user'?'guest':'–'))+kv('Level', '<span class="mid">'+(u.total_level||'–')+'</span> <span class="muted">total, combat '+(u.combat_level||'–')+'</span>')+
     kv('Gold', '<span class="mid">'+fmt(u.coins)+'</span>')+kv('Reps', '<span class="mid">'+fmt(u.reps)+'</span> <span class="muted">'+fmt(u.workout_days)+' days</span>')+kv('Steps', '<span class="mid">'+fmt(u.steps)+'</span>')+
     kv('Clan', u.clan?esc(u.clan):'–')+kv('Notifications', permTag(u))+
     kv('Pushes', fmt(u.pushes_logged)+' scheduled, '+fmt(u.pushes_sent)+' accepted, '+fmt(u.pushes_failed)+' refused, '+fmt(u.pushes_opened)+' opened')+
@@ -472,7 +473,10 @@ async function loadSummary(){
   loadFunnel().catch(()=>{}); loadRc().catch(()=>{});
   api('/api/insights?days='+(DAYS===365?36500:DAYS)).then(renderAnswers).catch(()=>{});
   loadQuests().catch(()=>{});
-  api('/api/users').then(rows=>{ USERS=(rows||[]).map(u=>({ ...u, level: levelFor(u.strength_xp||0)+levelFor(u.agility_xp||0) })); applyUsers(); }).catch(()=>{});
+  // Will 2026-09-14: level is the rework's total level, straight off skills_xp
+  // (migration 0056). It used to be strength level + agility level, which has
+  // been 2 for everybody since the cutover.
+  api('/api/users').then(rows=>{ USERS=(rows||[]).map(u=>({ ...u, level: u.total_level||0 })); applyUsers(); }).catch(()=>{});
   document.getElementById('rangeLabel').textContent = DAYS+' days'; document.getElementById('rangeLabel2').textContent = DAYS+' days';
   const t=d.totals, td=d.today, yd=d.yesterday;
   document.getElementById('cards').innerHTML =
