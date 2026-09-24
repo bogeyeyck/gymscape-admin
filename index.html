@@ -283,6 +283,26 @@ async function loadQuests(){
 }
 
 // ---------- players ----------
+// subscription detail (Will 2026-09-24): the product, trial or paid, days
+// left, and a SANDBOX badge for TestFlight / Play internal purchases, which
+// RevenueCat hides behind its sandbox toggle and never charges
+// table cell: the days left and a sandbox tag, nothing else
+const subShort = u => {
+  if(!u.sub_product) return '';
+  let t='';
+  if(u.sub_days_left!=null && u.sub_status!=='expired') t+=' <span class="muted">'+u.sub_days_left+'d</span>';
+  if(u.sub_env==='SANDBOX') t+=' <span class="tag lapsed" title="TestFlight or Play internal testing purchase: nothing was charged">sandbox</span>';
+  return t;
+};
+const subDetail = u => {
+  if(!u.sub_product) return '';
+  const bits=[nice(u.sub_product.replace('gymscape_',''))];
+  if(u.sub_period==='TRIAL') bits.push('free trial');
+  if(u.sub_days_left!=null && u.sub_status!=='expired') bits.push(u.sub_days_left+(u.sub_days_left===1?' day left':' days left'));
+  if(u.sub_expires) bits.push('until '+dateS(u.sub_expires));
+  const env = u.sub_env==='SANDBOX' ? ' <span class="tag lapsed" title="TestFlight or Play internal testing purchase: nothing was charged">sandbox</span>' : '';
+  return ' <span class="muted">'+bits.join(', ')+'</span>'+env;
+};
 const tierTag = u => '<span class="tag '+u.tier+'">'+u.tier+'</span>'+(u.row_kind!=='user'?' <span class="tag '+u.row_kind+'">'+u.row_kind+'</span>':'');
 const permTag = u => '<span class="tag '+(u.push_permission==='allowed'?'allowed':u.push_permission==='denied'?'denied':'')+'">'+u.push_permission+'</span>'+(u.push_decided_hours!=null?' <span class="muted">after '+(u.push_decided_hours<0.05?'right away':u.push_decided_hours<1?Math.round(u.push_decided_hours*60)+' min':u.push_decided_hours<48?Math.round(u.push_decided_hours)+'h':Math.round(u.push_decided_hours/24)+'d')+'</span>':'');
 const who = u => u.username ? esc(u.username) : (u.row_kind==='user' ? '<span class="stone">guest</span>' : '<span class="stone">anonymous</span>');
@@ -305,7 +325,7 @@ function applyUsers(){
   list.sort((a,b)=>{const k=SORT.k;const av=a[k]??'',bv=b[k]??'';return (av<bv?-1:av>bv?1:0)*SORT.dir;});
   document.getElementById('playerCount').textContent=list.length+' of '+USERS.length;
   document.querySelector('#users tbody').innerHTML = list.map(u =>
-    '<tr class="u" onclick="drill(\''+esc(u.id)+'\',\''+esc(u.row_kind)+'\')"><td>'+who(u)+'</td><td>'+tierTag(u)+'</td><td>'+(u.platform||'–')+'</td>'+
+    '<tr class="u" onclick="drill(\''+esc(u.id)+'\',\''+esc(u.row_kind)+'\')"><td>'+who(u)+'</td><td>'+tierTag(u)+subShort(u)+'</td><td>'+(u.platform||'–')+'</td>'+
     '<td class="muted">'+(u.same_phone?esc(u.same_phone):'–')+'</td>'+
     '<td>'+dateS(u.signed_up)+'</td><td>'+ago(u.last_seen)+'</td>'+
     '<td><span class="n">'+u.level+'</span></td>'+
@@ -326,7 +346,7 @@ async function drill(id, kind){
   const prefs = u.prefs||{};
   const kv = (l,v) => '<div class="slab2"><span class="label">'+l+'</span>'+v+'</div>';
   body.innerHTML = '<h1 class="font-display">'+(u.username?esc(u.username):(kind==='user'?'Guest':'Anonymous subscriber'))+'</h1><div class="muted">'+esc(id)+'</div>'+
-    '<div class="kv">'+kv('Tier', tierTag(u)+(u.sub_product?' <span class="muted">'+nice(u.sub_product.replace('gymscape_',''))+(u.sub_expires?', until '+dateS(u.sub_expires):'')+'</span>':''))+
+    '<div class="kv">'+kv('Tier', tierTag(u)+subDetail(u))+
     kv('Signed up', dateS(u.signed_up))+kv('Last seen', ago(u.last_seen)+' ago')+kv('Platform', (u.platform||'–')+(u.app_version?' <span class="muted">'+u.app_version+'</span>':''))+
     kv('Sign-in', u.providers||(kind==='user'?'guest':'–'))+kv('Level', '<span class="mid">'+(u.total_level||'–')+'</span> <span class="muted">total, combat '+(u.combat_level||'–')+'</span>')+
     kv('Gold', '<span class="mid">'+fmt(u.coins)+'</span>')+kv('Reps', '<span class="mid">'+fmt(u.reps)+'</span> <span class="muted">'+fmt(u.workout_days)+' days</span>')+kv('Steps', '<span class="mid">'+fmt(u.steps)+'</span>')+
