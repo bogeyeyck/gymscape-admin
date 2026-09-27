@@ -78,7 +78,9 @@
   td .n { font-family:var(--f-num); font-size:17px; color:var(--xp); }
   .tag { display:inline-block; font:600 10px var(--f-head); letter-spacing:.06em; text-transform:uppercase; padding:2px 8px; border-radius:12px; border:1px solid var(--edge); color:var(--stone); background:rgba(10,11,14,.5); }
   .tag.member, .tag.allowed, .tag.trial { color:var(--green); border-color:rgba(87,208,90,.5); }
-  .tag.lapsed, .tag.denied { color:var(--danger); border-color:rgba(224,86,75,.5); }
+  .tag.lapsed, .tag.denied, .tag.cancelled { color:var(--danger); border-color:rgba(224,86,75,.5); }
+  .pager { display:flex; align-items:center; gap:10px; justify-content:flex-end; margin-top:10px; }
+  .pager button:disabled { opacity:.35; cursor:default; }
   .tag.legacy, .tag.anonymous { color:var(--orange); border-color:rgba(255,166,77,.5); }
 
   input { font:inherit; color:var(--parch); background:rgba(10,11,14,.6); border:1px solid var(--edge); border-radius:20px; padding:7px 14px; box-shadow:inset 0 1px 2px rgba(0,0,0,.6); text-shadow:none; }
@@ -167,6 +169,7 @@
       <button class="fbtn on" data-f="all">All players</button>
       <button class="fbtn" data-f="member">Members</button>
       <button class="fbtn" data-f="trial">Trials</button>
+      <button class="fbtn" data-f="cancelled">Cancelled</button>
       <button class="fbtn" data-f="lapsed">Lapsed</button>
       <button class="fbtn" data-f="named">Named</button>
       <button class="fbtn" data-f="guest">Guests</button>
@@ -181,6 +184,7 @@
       <th data-k="username">Player</th><th data-k="tier">Tier</th><th data-k="platform">Platform</th><th data-k="same_phone">Same phone as</th><th data-k="signed_up">Signed up</th><th data-k="last_seen">Last seen</th>
       <th data-k="level">Level</th><th data-k="reps">Reps</th><th data-k="workout_days">Days trained</th><th data-k="push_permission">Notifications</th><th data-k="providers">Sign-in</th><th data-k="paywall_viewed">Paywall</th><th data-k="app_version">Build</th>
     </tr></thead><tbody></tbody></table></div>
+    <div class="pager"><span class="muted" id="pageInfo"></span><button class="fbtn" id="pgPrev">Previous</button><button class="fbtn" id="pgNext">Next</button></div>
   </div>
 
   <h2>Retention <span class="seg" id="retSeg" style="margin-left:6px"><button data-s="all" class="on">All</button><button data-s="named">Named</button><button data-s="members">Members</button></span></h2>
@@ -219,7 +223,7 @@ const nice = s => String(s||'').replace(/[_-]+/g,' ');
 const XP_TABLE = (() => { const P=1.15, G=Math.pow(1e7/(100*Math.pow(98,P)),1/97), A=100/G; const t=[0,0]; for (let l=2;l<=99;l++) t.push(Math.round(A*Math.pow(l-1,P)*Math.pow(G,l-1))); t[99]=1e7; return t; })();
 const levelFor = xp => { for (let l=99;l>=1;l--) if (xp >= XP_TABLE[l]) return l; return 1; };
 
-let USERS=[], DAYS=30, FILTER='all', PLAT='any', SORT={k:'last_seen',dir:-1}, RET=null, RETSEG='all', FEEDTIMER=null, SEEN=new Set(), CHARTS=[];
+let USERS=[], PAGE=0, PER=50, DAYS=30, FILTER='all', PLAT='any', SORT={k:'last_seen',dir:-1}, RET=null, RETSEG='all', FEEDTIMER=null, SEEN=new Set(), CHARTS=[];
 const GRID='rgba(255,255,255,.06)', TICK='#969cac';
 
 function card(label, v, sub=''){ return '<div class="slab card"><div class="big">'+v+'</div><span class="label">'+label+'</span>'+(sub?'<div class="sub">'+sub+'</div>':'')+'</div>'; }
@@ -290,7 +294,7 @@ async function loadQuests(){
 const subShort = u => {
   if(!u.sub_product) return '';
   let t='';
-  if(u.sub_days_left!=null && u.sub_status!=='expired') t+=' <span class="muted">'+u.sub_days_left+'d</span>';
+  if(u.sub_days_left!=null && u.sub_status!=='expired') t+=' <span class="muted">'+(u.sub_status==='cancelled'?'ends in ':'')+u.sub_days_left+'d</span>';
   if(u.sub_env==='SANDBOX') t+=' <span class="tag lapsed" title="TestFlight or Play internal testing purchase: nothing was charged">sandbox</span>';
   return t;
 };
@@ -298,12 +302,15 @@ const subDetail = u => {
   if(!u.sub_product) return '';
   const bits=[nice(u.sub_product.replace('gymscape_',''))];
   if(u.sub_period==='TRIAL') bits.push('free trial');
+  if(u.sub_status==='cancelled') bits.push('cancelled, will not renew');
   if(u.sub_days_left!=null && u.sub_status!=='expired') bits.push(u.sub_days_left+(u.sub_days_left===1?' day left':' days left'));
-  if(u.sub_expires) bits.push('until '+dateS(u.sub_expires));
+  if(u.sub_expires) bits.push((u.sub_status==='cancelled'?'access ends ':'until ')+dateS(u.sub_expires));
   const env = u.sub_env==='SANDBOX' ? ' <span class="tag lapsed" title="TestFlight or Play internal testing purchase: nothing was charged">sandbox</span>' : '';
   return ' <span class="muted">'+bits.join(', ')+'</span>'+env;
 };
-const tierTag = u => '<span class="tag '+u.tier+'">'+u.tier+'</span>'+(u.row_kind!=='user'?' <span class="tag '+u.row_kind+'">'+u.row_kind+'</span>':'');
+// cancelled = auto-renew turned off; they keep access until the period ends, so the tier stays trial or member until then
+const isCancelled = u => u.sub_status==='cancelled' && (u.tier==='trial'||u.tier==='member');
+const tierTag = u => '<span class="tag '+u.tier+'">'+u.tier+'</span>'+(isCancelled(u)?' <span class="tag cancelled" title="Auto-renew is off. Access ends when the current period runs out.">cancelled</span>':'')+(u.row_kind!=='user'?' <span class="tag '+u.row_kind+'">'+u.row_kind+'</span>':'');
 const permTag = u => '<span class="tag '+(u.push_permission==='allowed'?'allowed':u.push_permission==='denied'?'denied':'')+'">'+u.push_permission+'</span>'+(u.push_decided_hours!=null?' <span class="muted">after '+(u.push_decided_hours<0.05?'right away':u.push_decided_hours<1?Math.round(u.push_decided_hours*60)+' min':u.push_decided_hours<48?Math.round(u.push_decided_hours)+'h':Math.round(u.push_decided_hours/24)+'d')+'</span>':'');
 const who = u => u.username ? esc(u.username) : (u.row_kind==='user' ? '<span class="stone">guest</span>' : '<span class="stone">anonymous</span>');
 function applyUsers(){
@@ -314,6 +321,7 @@ function applyUsers(){
   const seen=u=>u.last_seen?now-new Date(u.last_seen):Infinity;
   if(FILTER==='member') list=list.filter(u=>u.tier==='member');
   if(FILTER==='trial') list=list.filter(u=>u.tier==='trial');
+  if(FILTER==='cancelled') list=list.filter(isCancelled);
   if(FILTER==='lapsed') list=list.filter(u=>u.tier==='lapsed');
   if(FILTER==='named') list=list.filter(u=>u.username);
   // players = claimed (a username); guests live under their own filter and stay out of the others
@@ -324,6 +332,12 @@ function applyUsers(){
   if(PLAT!=='any') list=list.filter(u=>(u.platform||'').includes(PLAT));
   list.sort((a,b)=>{const k=SORT.k;const av=a[k]??'',bv=b[k]??'';return (av<bv?-1:av>bv?1:0)*SORT.dir;});
   document.getElementById('playerCount').textContent=list.length+' of '+USERS.length;
+  // 50 a page (Will 2026-09-27)
+  const pages=Math.max(1,Math.ceil(list.length/PER)); if(PAGE>=pages) PAGE=pages-1;
+  const from=PAGE*PER;
+  document.getElementById('pageInfo').textContent = list.length ? (from+1)+' to '+Math.min(from+PER,list.length)+' of '+list.length+', page '+(PAGE+1)+' of '+pages : '';
+  document.getElementById('pgPrev').disabled = PAGE===0; document.getElementById('pgNext').disabled = PAGE>=pages-1;
+  list = list.slice(from, from+PER);
   document.querySelector('#users tbody').innerHTML = list.map(u =>
     '<tr class="u" onclick="drill(\''+esc(u.id)+'\',\''+esc(u.row_kind)+'\')"><td>'+who(u)+'</td><td>'+tierTag(u)+subShort(u)+'</td><td>'+(u.platform||'–')+'</td>'+
     '<td class="muted">'+(u.same_phone?esc(u.same_phone):'–')+'</td>'+
@@ -334,10 +348,12 @@ function applyUsers(){
     '<td>'+(u.paywall_viewed?fmt(u.paywall_viewed)+'x'+(u.subscribe_started?' <span class="goldc">tapped</span>':''):'<span class="stone">no</span>')+'</td>'+
     '<td class="muted">'+(u.app_version?u.app_version+' '+(u.app_sha||''):'–')+'</td></tr>').join('') || '<tr><td class="muted" colspan="13">Nobody matches.</td></tr>';
 }
-document.querySelectorAll('#users th').forEach(th=>th.onclick=()=>{ const k=th.dataset.k; SORT = SORT.k===k ? {k,dir:-SORT.dir} : {k,dir:-1}; applyUsers(); });
-document.querySelectorAll('.fbtn:not(.pbtn)').forEach(b=>b.onclick=()=>{ FILTER=b.dataset.f; document.querySelectorAll('.fbtn:not(.pbtn)').forEach(x=>x.classList.toggle('on',x===b)); applyUsers(); });
-document.querySelectorAll('.pbtn').forEach(b=>b.onclick=()=>{ PLAT=b.dataset.p; document.querySelectorAll('.pbtn').forEach(x=>x.classList.toggle('on',x===b)); applyUsers(); });
-document.getElementById('q').oninput=applyUsers;
+document.querySelectorAll('#users th').forEach(th=>th.onclick=()=>{ const k=th.dataset.k; SORT = SORT.k===k ? {k,dir:-SORT.dir} : {k,dir:-1}; PAGE=0; applyUsers(); });
+document.getElementById('pgPrev').onclick=()=>{ PAGE=Math.max(0,PAGE-1); applyUsers(); };
+document.getElementById('pgNext').onclick=()=>{ PAGE++; applyUsers(); };
+document.querySelectorAll('.fbtn[data-f]').forEach(b=>b.onclick=()=>{ FILTER=b.dataset.f; PAGE=0; document.querySelectorAll('.fbtn[data-f]').forEach(x=>x.classList.toggle('on',x===b)); applyUsers(); });
+document.querySelectorAll('.pbtn').forEach(b=>b.onclick=()=>{ PLAT=b.dataset.p; PAGE=0; document.querySelectorAll('.pbtn').forEach(x=>x.classList.toggle('on',x===b)); applyUsers(); });
+document.getElementById('q').oninput=()=>{ PAGE=0; applyUsers(); };
 
 // ---------- one player ----------
 async function drill(id, kind){
@@ -488,6 +504,13 @@ async function loadRc(){
   const warn = !r.total ? '<p class="warn">No webhook events yet.</p>' : (r.ignored_products||[]).length ? '<p class="warn">Ignored product ids: '+r.ignored_products.join(', ')+'</p>' : '';
   document.getElementById('rc').innerHTML = warn + '<table><tbody>'+(r.recent||[]).slice(0,8).map(e=>'<tr><td>'+nice(e.type).toLowerCase()+'</td><td class="muted">'+String(e.product||'').split(':')[0].replace('gymscape_','')+'</td><td>'+({APP_STORE:'App Store',PLAY_STORE:'Play',RC_BILLING:'Web'}[e.store]||e.store||'')+'</td><td class="muted" style="text-align:right">'+ago(e.at)+' ago</td></tr>').join('')+'</tbody></table>';
 }
+// Members card detail (Will 2026-09-27): the headline counts everyone with access, so split out trials and cancellations
+function memberSplit(){
+  const el=document.getElementById('memSub'); if(!el) return;
+  const live=USERS.filter(u=>(INTERNAL||!u.is_internal)&&(u.tier==='member'||u.tier==='trial'));
+  const paying=live.filter(u=>u.tier==='member'&&!isCancelled(u)).length, trials=live.filter(u=>u.tier==='trial'&&!isCancelled(u)).length, cancelled=live.filter(isCancelled).length;
+  el.textContent=paying+' paying, '+trials+' on trial, '+cancelled+' cancelled';
+}
 async function loadSummary(){
   const d = await api('/api/summary?days='+DAYS); if (d.error) return;
   loadFunnel().catch(()=>{}); loadRc().catch(()=>{});
@@ -496,12 +519,12 @@ async function loadSummary(){
   // Will 2026-09-14: level is the rework's total level, straight off skills_xp
   // (migration 0056). It used to be strength level + agility level, which has
   // been 2 for everybody since the cutover.
-  api('/api/users').then(rows=>{ USERS=(rows||[]).map(u=>({ ...u, level: u.total_level||0 })); applyUsers(); }).catch(()=>{});
+  api('/api/users').then(rows=>{ USERS=(rows||[]).map(u=>({ ...u, level: u.total_level||0 })); applyUsers(); memberSplit(); }).catch(()=>{});
   document.getElementById('rangeLabel').textContent = DAYS+' days'; document.getElementById('rangeLabel2').textContent = DAYS+' days';
   const t=d.totals, td=d.today, yd=d.yesterday;
   document.getElementById('cards').innerHTML =
     card('Players', fmt(t.players ?? t.named), 'claimed a username')+card('Guests', fmt(t.guests ?? t.anon_installs), fmt(t.guests_tried ?? t.anon_tryers)+' tried a workout, '+fmt(t.guests_7d ?? 0)+' active this week')+
-    card('Members', fmt(t.subs), 'paying now')+card('MRR', '$'+fmt(t.mrr))+
+    card('Members', fmt(t.subs), '<span id="memSub">paying or on trial now</span>')+card('MRR', '$'+fmt(t.mrr))+
     card('Active today', fmt(t.players_dau ?? t.dau), (t.dau-(t.players_dau??t.dau))+' guests')+card('Active 7 days', fmt(t.players_wau ?? t.wau), (t.wau-(t.players_wau??t.wau))+' guests')+card('Active 30 days', fmt(t.players_mau ?? t.mau), (t.mau-(t.players_mau??t.mau))+' guests')+card('Clans', fmt(t.clans));
   document.getElementById('digest').innerHTML =
     card('Claimed', fmt(td.signups)+delta(td.signups, yd.signups))+card('New guests', fmt(td.guests ?? 0)+delta(td.guests ?? 0, yd.guests ?? 0))+card('Active', fmt(td.active)+delta(td.active, yd.active))+card('Workouts', fmt(td.workouts)+delta(td.workouts, yd.workouts))+
