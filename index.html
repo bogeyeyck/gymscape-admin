@@ -106,6 +106,15 @@
   .kv div { padding:6px 8px; }
   .kv .label { display:block; }
 
+  .tag.flagged { color:var(--danger); border-color:rgba(224,86,75,.5); }
+  .tag.watching { color:var(--orange); border-color:rgba(255,166,77,.5); }
+  .tag.confirmed { color:#241c0e; background:var(--danger); border-color:var(--danger); }
+  .tag.cleared { color:var(--green); border-color:rgba(87,208,90,.5); }
+  .why { white-space:normal; min-width:320px; max-width:560px; line-height:1.35; }
+  .acbtns { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0; }
+  .replay { display:grid; grid-template-columns:minmax(260px,420px) 1fr; gap:14px; align-items:start; }
+  .replay canvas { max-height:none; width:100%; background:rgba(10,11,14,.6); border-radius:6px; }
+  @media (max-width:760px) { .replay { grid-template-columns:1fr; } }
   #login { display:flex; min-height:92vh; align-items:center; justify-content:center; padding:20px; }
   #login form { width:340px; display:flex; flex-direction:column; gap:12px; padding:22px; text-align:center; }
   #dash { display:none; }
@@ -126,7 +135,10 @@
 
 <div id="dash" class="wrap">
   <div class="topbar">
-    <h1 class="font-display">GymScape</h1>
+    <div style="display:flex;gap:14px;align-items:center">
+      <h1 class="font-display">GymScape</h1>
+      <div class="seg" id="tabs"><button data-t="dash" class="on">Dashboard</button><button data-t="ac">Anti-cheat <span id="acCount"></span></button></div>
+    </div>
     <div style="display:flex;gap:12px;align-items:center">
       <div class="seg" id="range"><button data-d="7">7d</button><button data-d="30" class="on">30d</button><button data-d="90">90d</button><button data-d="365">All</button></div>
       <button class="fbtn" id="internalBtn" title="Accounts marked as your own phones are left out of every number unless this is on">Show my devices</button>
@@ -134,6 +146,7 @@
     </div>
   </div>
 
+  <div id="tabDash">
   <div class="cards" id="cards"></div>
 
   <h2>The questions <small id="qLabel"></small></h2>
@@ -198,6 +211,27 @@
   <div class="grid2" style="margin-top:14px">
     <div><h2 style="margin-top:0">Campaign links</h2><div class="slab"><table id="campaigns"><tbody></tbody></table></div></div>
     <div><h2 style="margin-top:0">RevenueCat <small id="rcLabel"></small></h2><div class="slab" id="rc"></div></div>
+  </div>
+  </div>
+
+  <div id="tabAc" style="display:none">
+    <h2 style="margin-top:4px">Flagged accounts <small id="acLabel"></small></h2>
+    <p class="muted" style="margin:2px 0 10px;max-width:980px">The scan runs every night at 05:10 UTC over the last 7 days, and on demand. An account is flagged when any rule trips:
+      <b>daily</b>, 1,500 or more reps in one day, not counting jumping jacks, high knees or the plank;
+      <b>jacks or knees</b>, 3,000 or more jumping jacks, or 3,000 or more high knees, in one day;
+      <b>nonstop</b>, 400 or more reps with no pause over 10 seconds;
+      <b>steady</b>, a session of 150 or more reps whose pace barely changes (the middle 80% of rep times within 22% of the typical rep);
+      <b>exact</b>, 100 or more reps whose exact rep-to-rep times vary by less than 6% (new app builds send every rep's time).
+      While an account is flagged, watched or confirmed, a share of its camera sessions records one minute of body-position points (no video) for replay here. The player sees nothing.</p>
+    <div class="filters" style="margin-bottom:10px">
+      <button class="fbtn" id="acScan">Run the scan now</button>
+      <span class="muted" id="acScanOut"></span>
+      <span style="flex:1"></span>
+      <input id="acFlagName" placeholder="Flag a player by name" style="width:220px" />
+      <button class="fbtn" id="acFlagBtn">Flag</button>
+    </div>
+    <div class="slab" style="overflow-x:auto"><table id="acTable"><thead><tr><th>Player</th><th>Status</th><th>Why</th><th>Newest evidence</th><th>Recordings</th><th>Hiscores</th><th></th></tr></thead><tbody></tbody></table></div>
+    <div id="acDetail" style="margin-top:18px"></div>
   </div>
 </div>
 <div id="drill" onclick="if(event.target===this)this.style.display='none'"><div class="inner slab" id="drillBody"></div></div>
@@ -273,7 +307,7 @@ function renderAnswers(i){
 }
 
 // ---------- starting quests ----------
-const QUEST_TITLES = { chicken:'Kill a chicken', stone_pickaxe:'Craft a stone pickaxe', agility_5:'Train Agility to 5', copper:'Mine first copper', leather:'Craft leather armor', bronze_bar:'Smelt a bronze bar', bronze_arrows:'Fletch bronze arrows', oak_bow:'Fletch an oak bow', bronze_sword:'Smith a bronze sword' };
+const QUEST_TITLES = { sticks:'Collect 2 sticks', stones:'Collect 5 stones', stone_pickaxe:'Craft a stone pickaxe', copper:'Mine a copper ore', boar:'Kill 4 boars', leather:'Craft leather', leather_boots:'Craft leather boots', stone_axe:'Craft a stone axe', pine:'Chop a pine tree', flax:'Pick 10 flax', bowstring:'Craft a bowstring', pine_bow:'Fletch a pine bow', chickens:'Kill 5 chickens', bronze_bar:'Smelt a bronze bar', bronze_arrows:'Fletch bronze arrows', bronze_sword:'Smith a bronze sword', chicken:'Kill a chicken (old rail)', agility_5:'Train Agility to 5 (old rail)', oak_bow:'Fletch an oak bow (old rail)' };
 const hours = h => h==null ? '–' : h < 1 ? Math.round(h*60)+' min' : h < 48 ? Math.round(h)+'h' : Math.round(h/24)+'d';
 async function loadQuests(){
   const q = await api('/api/quests?days='+(DAYS===365?36500:DAYS)); if (!q || q.error) return;
@@ -540,10 +574,219 @@ async function loadSummary(){
 document.getElementById('internalBtn').onclick=()=>{ INTERNAL=!INTERNAL; document.getElementById('internalBtn').classList.toggle('on',INTERNAL); document.getElementById('internalBtn').textContent=INTERNAL?'Showing my devices':'Show my devices'; SEEN=new Set(); loadSummary().then(()=>pollFeed(true)); };
 document.querySelectorAll('#range button').forEach(b=>b.onclick=()=>{ DAYS=Number(b.dataset.d); document.querySelectorAll('#range button').forEach(x=>x.classList.toggle('on',x===b)); loadSummary(); });
 
+// ---------- anti-cheat (Will 2026-09-29, migration 0072) ----------
+let AC=[], ACOPEN=null, REPLAY=null;
+const post = (p, body) => fetch(API + p, { method:'POST', headers:{ Authorization:'Bearer '+(tok()||''), 'Content-Type':'application/json' }, body: JSON.stringify(body||{}) }).then(r => { if (r.status === 401) { logout(); throw new Error('unauthorized'); } return r.json(); });
+const tShort = t => t ? new Date(t).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '–';
+const mins = (a,b) => Math.round((new Date(b)-new Date(a))/6000)/10;
+function acReason(r){
+  if (r.rule==='daily') return fmt(r.reps)+' reps on '+dateS(r.day+'T12:00:00Z');
+  if (r.rule==='daily_exercise') return fmt(r.reps)+' '+exName(r.exercise)+' on '+dateS(r.day+'T12:00:00Z');
+  if (r.rule==='nonstop') return fmt(r.reps)+' '+exName(r.exercise)+' in a row over '+r.minutes+' min, no pause over 10 s ('+tShort(r.started)+')';
+  if (r.rule==='steady') return fmt(r.reps)+' '+exName(r.exercise)+' at '+r.sec_per_rep+' s a rep, pace varied only '+Math.round(r.spread*100)+'% ('+tShort(r.started)+')';
+  if (r.rule==='exact') return fmt(r.reps)+' '+exName(r.exercise)+' every '+fmt(r.mean_ms)+' ms, give or take '+fmt(r.sd_ms)+' ms ('+Math.round(r.cv*1000)/10+'%, '+tShort(r.started)+')';
+  return nice(r.rule);
+}
+function acSummary(rs){
+  rs = rs||[]; if (!rs.length) return '<span class="muted">Flagged by hand</span>';
+  const by = k => rs.filter(r=>r.rule===k);
+  const parts = [];
+  const d = by('daily'); if (d.length) parts.push('<b>daily</b> '+d.length+' day'+(d.length>1?'s':'')+', up to '+fmt(Math.max(...d.map(x=>x.reps)))+' reps');
+  const dx = by('daily_exercise'); if (dx.length) parts.push('<b>jacks or knees</b> '+dx.length+' day'+(dx.length>1?'s':'')+', up to '+fmt(Math.max(...dx.map(x=>x.reps)))+' '+exName(dx.slice().sort((a,b)=>b.reps-a.reps)[0].exercise));
+  const n = by('nonstop'); if (n.length) parts.push('<b>nonstop</b> '+n.length+'x, up to '+fmt(Math.max(...n.map(x=>x.reps)))+' in a row');
+  const st = by('steady'); if (st.length) parts.push('<b>steady</b> '+st.length+' session'+(st.length>1?'s':'')+', pace varied '+Math.round(Math.min(...st.map(x=>x.spread))*100)+'% at the least');
+  const e = by('exact'); if (e.length) parts.push('<b>exact</b> '+e.length+'x, rep times varied '+(Math.round(Math.min(...e.map(x=>x.cv))*1000)/10)+'% at the least');
+  return parts.join('; ');
+}
+async function loadAc(){
+  try { AC = await api('/api/anticheat'); } catch { return; }
+  if (!Array.isArray(AC)) { AC=[]; return; }
+  const open = AC.filter(a=>a.status==='flagged').length;
+  document.getElementById('acCount').textContent = open ? '('+open+')' : '';
+  document.getElementById('acLabel').textContent = AC.length+' account'+(AC.length===1?'':'s')+', '+open+' waiting for review';
+  document.querySelector('#acTable tbody').innerHTML = AC.map(a =>
+    '<tr><td><a onclick="openAc(\''+a.id+'\')" class="goldc">'+esc(a.username||'Guest')+'</a>'+(a.is_internal?' <span class="tag">mine</span>':'')+'</td>'+
+    '<td><span class="tag '+a.status+'">'+a.status+'</span>'+(a.auto?'':' <span class="muted">by hand</span>')+'</td>'+
+    '<td class="why">'+acSummary(a.reasons)+'</td><td class="muted">'+(a.evidence_at?ago(a.evidence_at)+' ago':'–')+'</td>'+
+    '<td>'+fmt(a.samples)+(a.last_sample?' <span class="muted">'+ago(a.last_sample)+' ago</span>':'')+'</td>'+
+    '<td>'+(a.hide_hiscores?'<span class="tag lapsed">hidden</span>':'<span class="muted">shown</span>')+'</td>'+
+    '<td><button class="fbtn" onclick="openAc(\''+a.id+'\')">Review</button></td></tr>').join('') ||
+    '<tr><td colspan="7" class="muted">Nobody is flagged.</td></tr>';
+}
+async function acAct(id, action, extra){
+  const r = await post('/api/anticheat/action', Object.assign({ id, action }, extra||{})).catch(()=>null);
+  if (!r || r.error) { alert('Could not update: '+(r && r.error || 'network')); return; }
+  await loadAc(); if (ACOPEN===id) openAc(id);
+}
+async function openAc(id){
+  ACOPEN = id; stopReplay();
+  const box = document.getElementById('acDetail');
+  box.innerHTML = '<div class="slab muted">Loading</div>';
+  let d; try { d = await api('/api/anticheat/user?id='+id); } catch { box.innerHTML=''; return; }
+  const f = d.flag || {};
+  const btn = (a, label, cls) => '<button class="fbtn'+(cls?' '+cls:'')+'" onclick="acAct(\''+id+'\',\''+a+'\')">'+label+'</button>';
+  const rate = Number(f.sample_rate ?? 0.25);
+  const ev = d.evidence || f.reasons || [];
+  const days = {}; (d.days||[]).forEach(x => { (days[x.day] = days[x.day] || []).push(x); });
+  box.innerHTML = '<div class="slab">'+
+    '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap"><h1 class="font-display">'+esc(d.username||'Guest')+'</h1><span class="muted">'+esc(id)+'</span></div>'+
+    '<div class="muted">Status <span class="tag '+(f.status||'')+'">'+esc(f.status||'')+'</span>'+(f.first_flagged_at?', first flagged '+tShort(f.first_flagged_at):'')+(f.reviewed_at?', last reviewed '+tShort(f.reviewed_at):'')+'</div>'+
+    '<div class="acbtns">'+
+      btn('watch','Keep watching')+btn('clear','Clear: looks legit')+btn('confirm','Confirm cheating')+
+      (f.hide_hiscores?btn('unhide','Show on hiscores'):btn('hide','Hide from hiscores'))+
+      '<span class="muted" style="align-self:center;margin-left:8px">Record</span><span class="seg">'+[0,0.1,0.25,0.5,1].map(v=>'<button class="'+(Math.abs(rate-v)<1e-6?'on':'')+'" onclick="acAct(\''+id+'\',\'rate\',{rate:'+v+'})">'+(v===0?'never':Math.round(v*100)+'%')+'</button>').join('')+'</span><span class="muted" style="align-self:center">of sessions</span>'+
+    '</div>'+
+    '<div style="display:flex;gap:8px;align-items:flex-start"><textarea id="acNote" rows="2" style="flex:1;font:inherit;color:var(--parch);background:rgba(10,11,14,.6);border:1px solid var(--edge);border-radius:10px;padding:8px" placeholder="Notes">'+esc(f.note||'')+'</textarea><button class="fbtn" onclick="acAct(\''+id+'\',\'note\',{note:document.getElementById(\'acNote\').value})">Save note</button></div>'+
+    '<h2>Evidence <small>last 14 days, newest first</small></h2>'+
+    (ev.length?'<ul style="margin:0 0 0 18px">'+ev.map(r=>'<li><b>'+esc(r.rule==='daily_exercise'?'jacks or knees':r.rule)+'</b> '+acReason(r)+'</li>').join('')+'</ul>':'<p class="muted">No rule trips in the last 14 days.</p>')+
+    '<h2>Reps by day <small>UTC, last 14 days</small></h2>'+
+    '<table><tbody>'+Object.keys(days).sort().reverse().map(day=>'<tr><td>'+dateS(day+'T12:00:00Z')+'</td><td><span class="n">'+fmt(days[day].reduce((a,x)=>a+Number(x.reps),0))+'</span></td><td class="muted">'+days[day].sort((a,b)=>b.reps-a.reps).map(x=>fmt(x.reps)+' '+exName(x.exercise_id)).join(', ')+'</td></tr>').join('')+'</tbody></table>'+
+    '<h2>Exact rep timing <small>from app builds that send each rep\'s time</small></h2>'+
+    ((d.timing||[]).length ? '<table><thead><tr><th>Session</th><th>Exercise</th><th>Reps</th><th>Typical gap</th><th>Give or take</th><th>Varies</th><th>Fastest</th><th>Slowest</th><th></th></tr></thead><tbody>'+
+      d.timing.map((t,i)=>'<tr><td>'+tShort(t.started)+' <span class="muted">'+mins(t.started,t.ended)+' min</span></td><td>'+exName(t.exercise)+'</td><td>'+fmt(t.reps)+'</td><td>'+fmt(t.mean_ms)+' ms</td><td>'+fmt(t.sd_ms)+' ms</td><td>'+(t.mean_ms?Math.round(1000*t.sd_ms/t.mean_ms)/10+'%':'–')+'</td><td>'+fmt(t.min_ms)+' ms</td><td>'+fmt(t.max_ms)+' ms</td><td><button class="fbtn" onclick="plotGaps('+i+')">Chart</button></td></tr>').join('')+'</tbody></table><div class="slab2" style="margin-top:8px;display:none" id="gapBox"><canvas id="gapChart" style="max-height:220px"></canvas></div>'
+      : '<p class="muted">None yet. Exact times arrive once this player runs an app build from 2026-09-29 or later. Until then the rules above work from the 2-second batches.</p>')+
+    '<h2>Recordings <small>one minute of body-position points each, no video</small></h2>'+
+    ((d.samples||[]).length ? '<table><tbody>'+d.samples.map(s=>'<tr><td>'+tShort(s.started_at)+'</td><td>'+exName(s.exercise)+'</td><td>'+s.seconds+' s</td><td>'+fmt(s.reps)+' reps</td><td><button class="fbtn" onclick="playSample('+s.id+')">Replay</button></td></tr>').join('')+'</tbody></table>'
+      : '<p class="muted">None yet. They arrive once this player runs an app build from 2026-09-29 or later and trains while flagged, watched or confirmed.</p>')+
+    '<div id="replayBox"></div>'+
+  '</div>';
+  window.__acTiming = d.timing || [];
+  box.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+let GAPCHART=null;
+function plotGaps(i){
+  const t = (window.__acTiming||[])[i]; if (!t) return;
+  const g = (t.gaps_ms||[]).filter(x=>x!=null);
+  document.getElementById('gapBox').style.display='block';
+  if (GAPCHART) GAPCHART.destroy();
+  GAPCHART = new Chart(document.getElementById('gapChart'), { type:'line', data:{ labels:g.map((_,k)=>k+1), datasets:[{ label:'ms between reps, '+exName(t.exercise)+' '+tShort(t.started), data:g, borderColor:'#ffc44d', pointRadius:1.5, borderWidth:1 }] },
+    options:{ animation:false, scales:{ x:{ grid:{color:GRID}, ticks:{color:TICK, maxTicksLimit:12} }, y:{ grid:{color:GRID}, ticks:{color:TICK} } }, plugins:{ legend:{ labels:{ color:TICK } } } } });
+}
+
+// ---------- replay: the stick figure, rep marks, and how exactly the motion repeats ----------
+const EDGES = [[5,6],[5,7],[7,9],[6,8],[8,10],[5,11],[6,12],[11,12],[11,13],[13,15],[12,14],[14,16],[0,1],[0,2],[1,3],[2,4]];
+function stopReplay(){ if (REPLAY) { cancelAnimationFrame(REPLAY.raf); REPLAY=null; } }
+// For every lag from 1 to 30 s, the average gap between the pose now and the pose that far
+// later (points the model was sure of, in thousandths of the frame). A looped video repeats
+// itself: at the loop length the gap falls to about the model's own jitter.
+function repeatScan(frames, fps){
+  const n = frames.length, out = [];
+  for (let L = Math.round(fps*0.5); L <= Math.min(n-fps*5, fps*30); L++) {
+    let sum=0, cnt=0;
+    for (let t=0; t+L<n; t+=2) {
+      const a=frames[t], b=frames[t+L];
+      for (let k=0;k<17;k++){ const i=1+k*3; if (a[i+2]>=5 && b[i+2]>=5 && a[i]>=0 && b[i]>=0){ sum+=Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1]); cnt+=2; } }
+    }
+    if (cnt) out.push({ L, s:L/fps, d:sum/cnt });
+  }
+  return out;
+}
+function jitter(frames){
+  // frame to frame change: the floor a real repeat can reach
+  let sum=0,cnt=0;
+  for (let t=0;t+1<frames.length;t++){ const a=frames[t],b=frames[t+1]; for(let k=0;k<17;k++){ const i=1+k*3; if(a[i+2]>=5&&b[i+2]>=5){ sum+=Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1]); cnt+=2; } } }
+  return cnt?sum/cnt:0;
+}
+async function playSample(sid){
+  stopReplay();
+  const box = document.getElementById('replayBox');
+  box.innerHTML = '<div class="slab2 muted" style="margin-top:10px">Loading recording</div>';
+  let s; try { s = await api('/api/anticheat/sample?id='+sid); } catch { box.innerHTML=''; return; }
+  const D = s.data || {}; const F = D.frames || []; const R = D.reps || []; const fps = D.fps || 15;
+  if (!F.length) { box.innerHTML='<div class="slab2 muted">This recording is empty.</div>'; return; }
+  const gaps = R.slice(1).map((r,i)=>r-R[i]);
+  const mean = gaps.length ? gaps.reduce((a,b)=>a+b,0)/gaps.length : 0;
+  const sd = gaps.length ? Math.sqrt(gaps.reduce((a,b)=>a+(b-mean)**2,0)/gaps.length) : 0;
+  const scan = repeatScan(F, fps);
+  // the first dip that comes within 30% of the deepest one: a loop repeats at every multiple of its length
+  const minD = scan.length ? Math.min(...scan.map(x=>x.d)) : 0;
+  const best = scan.find(x => x.d <= minD * 1.3 + 0.5);
+  const typical = scan.length ? scan.map(x=>x.d).sort((a,b)=>a-b)[Math.floor(scan.length/2)] : 0;
+  const jit = jitter(F);
+  box.innerHTML = '<div class="slab2" style="margin-top:10px"><div class="replay">'+
+    '<div><canvas id="rpCanvas" width="420" height="420"></canvas>'+
+      '<div class="acbtns"><button class="fbtn" id="rpPlay">Pause</button><span class="seg" id="rpSpeed"><button data-v="0.5">0.5x</button><button data-v="1" class="on">1x</button><button data-v="2">2x</button></span><span class="muted" id="rpT" style="align-self:center"></span></div>'+
+      '<input type="range" id="rpSeek" min="0" max="'+(F.length-1)+'" value="0" style="width:100%" /></div>'+
+    '<div><div class="label">'+exName(s.exercise)+', '+tShort(s.started_at)+'</div>'+
+      '<div class="kv">'+
+        '<div class="slab2"><span class="label">Reps in this minute</span><span class="mid">'+fmt(R.length)+'</span></div>'+
+        '<div class="slab2"><span class="label">Time between reps</span><span class="mid">'+fmt(Math.round(mean))+' ms</span> <span class="muted">give or take '+fmt(Math.round(sd))+' ms ('+(mean?Math.round(1000*sd/mean)/10:0)+'%)</span></div>'+
+        '<div class="slab2"><span class="label">Fastest / slowest</span>'+(gaps.length?fmt(Math.min(...gaps))+' / '+fmt(Math.max(...gaps))+' ms':'–')+'</div>'+
+        '<div class="slab2"><span class="label">Closest repeat</span>'+(best?'every '+best.s.toFixed(2)+' s, off by '+best.d.toFixed(1):'–')+'<span class="muted"> (typical '+typical.toFixed(1)+', frame to frame '+jit.toFixed(1)+')</span></div>'+
+      '</div>'+
+      '<p class="muted">How to read the last box: the numbers are the average distance between body points, in thousandths of the frame. A person\'s reps are alike but never the same, so the closest repeat stays well above the frame-to-frame change. A looping video repeats itself exactly, so at the loop length the gap drops to about the frame-to-frame number or below.</p>'+
+      '<canvas id="rpRepeat" style="max-height:170px"></canvas>'+
+      '<div class="label" style="margin-top:8px">Rep times</div><div class="muted" style="word-break:break-all">'+gaps.map(g=>fmt(g)).join(', ')+' ms</div>'+
+    '</div></div></div>';
+  new Chart(document.getElementById('rpRepeat'), { type:'line', data:{ labels:scan.map(x=>x.s.toFixed(1)+' s'), datasets:[{ label:'gap to the pose this far later', data:scan.map(x=>x.d), borderColor:'#ffa64d', pointRadius:0, borderWidth:1.2 }] },
+    options:{ animation:false, scales:{ x:{ grid:{color:GRID}, ticks:{color:TICK, maxTicksLimit:10} }, y:{ beginAtZero:true, grid:{color:GRID}, ticks:{color:TICK} } }, plugins:{ legend:{ labels:{ color:TICK } } } } });
+  const cv = document.getElementById('rpCanvas'), ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  const aspect = (D.h||480)/(D.w||640);
+  const draw = (i) => {
+    const fr = F[i]; const t = fr[0];
+    ctx.clearRect(0,0,W,H);
+    const sh = Math.min(W, H/aspect), sw = sh, sy = sh*aspect, ox=(W-sw)/2, oy=(H-sy)/2;
+    const P = k => ({ x: ox + fr[1+k*3]/1000*sw, y: oy + fr[2+k*3]/1000*sy, s: fr[3+k*3] });
+    ctx.strokeStyle='rgba(255,255,255,.08)'; ctx.strokeRect(ox,oy,sw,sy);
+    ctx.lineWidth=4; ctx.lineCap='round';
+    EDGES.forEach(([a,b]) => { const A=P(a), B=P(b); if (A.s<3||B.s<3||fr[1+a*3]<0||fr[1+b*3]<0) return; ctx.strokeStyle='rgba(255,196,77,'+(0.35+0.065*Math.min(A.s,B.s))+')'; ctx.beginPath(); ctx.moveTo(A.x,A.y); ctx.lineTo(B.x,B.y); ctx.stroke(); });
+    for (let k=0;k<17;k++){ const A=P(k); if (A.s<3||fr[1+k*3]<0) continue; ctx.fillStyle = k<5?'#eceef4':'#ffd84d'; ctx.beginPath(); ctx.arc(A.x,A.y,k===0?5:3.5,0,7); ctx.fill(); }
+    const n = R.filter(r=>r<=t).length, last = R.filter(r=>r<=t).pop();
+    if (last!=null && t-last < 250) { ctx.fillStyle='rgba(87,208,90,.9)'; ctx.font='bold 26px "Jersey 10", monospace'; ctx.fillText('REP', W-70, 34); }
+    ctx.fillStyle='#ffd84d'; ctx.font='28px "Jersey 10", monospace'; ctx.fillText(String(n), 14, 34);
+    // rep ticks along the bottom
+    const end = F[F.length-1][0] || 1;
+    ctx.fillStyle='rgba(255,255,255,.15)'; ctx.fillRect(0,H-8,W,8);
+    ctx.fillStyle='#57d05a'; R.forEach(r=>ctx.fillRect(r/end*W-1,H-8,2,8));
+    ctx.fillStyle='#ffc44d'; ctx.fillRect(t/end*W-1,H-12,3,12);
+    document.getElementById('rpT').textContent = (t/1000).toFixed(1)+' s of '+(end/1000).toFixed(1)+' s';
+    document.getElementById('rpSeek').value = i;
+  };
+  REPLAY = { i:0, playing:true, speed:1, t0: performance.now(), base: F[0][0], raf:0 };
+  const tick = () => {
+    if (!REPLAY) return;
+    if (REPLAY.playing) {
+      const target = REPLAY.base + (performance.now()-REPLAY.t0)*REPLAY.speed;
+      while (REPLAY.i < F.length-1 && F[REPLAY.i+1][0] <= target) REPLAY.i++;
+      if (REPLAY.i >= F.length-1) { REPLAY.i = 0; REPLAY.t0 = performance.now(); REPLAY.base = F[0][0]; }
+    }
+    draw(REPLAY.i);
+    REPLAY.raf = requestAnimationFrame(tick);
+  };
+  const resync = () => { REPLAY.t0 = performance.now(); REPLAY.base = F[REPLAY.i][0]; };
+  document.getElementById('rpPlay').onclick = e => { REPLAY.playing = !REPLAY.playing; e.target.textContent = REPLAY.playing?'Pause':'Play'; resync(); };
+  document.getElementById('rpSeek').oninput = e => { REPLAY.i = Number(e.target.value); resync(); };
+  document.querySelectorAll('#rpSpeed button').forEach(b => b.onclick = () => { REPLAY.speed = Number(b.dataset.v); document.querySelectorAll('#rpSpeed button').forEach(x=>x.classList.toggle('on',x===b)); resync(); });
+  tick();
+}
+document.getElementById('acScan').onclick = async () => {
+  const o = document.getElementById('acScanOut'); o.textContent = 'Scanning';
+  const r = await post('/api/anticheat/scan').catch(()=>null);
+  o.textContent = !r || r.error ? 'The scan failed: '+(r && r.error || 'network') : fmt(r.accounts_with_evidence)+' accounts tripped a rule, '+fmt(r.newly_flagged)+' newly flagged.';
+  loadAc();
+};
+document.getElementById('acFlagBtn').onclick = async () => {
+  const q = document.getElementById('acFlagName').value.trim().toLowerCase(); if (!q) return;
+  if (!USERS.length) { try { USERS = await api('/api/users'); } catch {} }
+  const u = USERS.find(x => (x.username||'').toLowerCase() === q) || USERS.find(x => x.id === q);
+  if (!u || !u.id) { alert('No player called '+q); return; }
+  await acAct(u.id, 'flag'); openAc(u.id);
+};
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x===b));
+  const ac = b.dataset.t === 'ac';
+  document.getElementById('tabDash').style.display = ac ? 'none' : 'block';
+  document.getElementById('tabAc').style.display = ac ? 'block' : 'none';
+  document.getElementById('range').style.visibility = ac ? 'hidden' : 'visible';
+  if (ac) loadAc(); else stopReplay();
+});
+
 async function boot(){
   try { await loadSummary(); } catch { return; }
   document.getElementById('login').style.display='none'; document.getElementById('dash').style.display='block';
   api('/api/retention').then(r=>{ RET=r; renderRetention(); }).catch(()=>{});
+  loadAc();   // the badge on the Anti-cheat tab
   await pollFeed(true);
   clearInterval(FEEDTIMER); FEEDTIMER=setInterval(()=>pollFeed(false), 8000);
   setInterval(loadSummary, 120000);
