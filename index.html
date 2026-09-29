@@ -290,7 +290,7 @@ function renderAnswers(i){
     // 3. prefs
     '<div class="slab answer"><div class="q">Notification types switched on</div>'+
       '<div class="a"><span class="big">'+fmt(pr.base)+'</span><span class="of">players can receive pushes (have a device token)</span></div>'+
-      '<div class="rows">'+bar('Bounty', pr.bounty, pr.base)+bar('Gathering', pr.gather, pr.base)+bar('Clan', pr.clan, pr.base)+bar('Weekly recap', pr.weekly, pr.base)+bar('Come back', pr.retention, pr.base)+bar('Workout time', pr.workout, pr.base)+'</div></div>'+
+      '<div class="rows">'+bar('Gathering', pr.gather, pr.base)+bar('Clan', pr.clan, pr.base)+bar('Weekly recap', pr.weekly, pr.base)+bar('Come back', pr.retention, pr.base)+bar('Workout time', pr.workout, pr.base)+'</div></div>'+
     // 4. accounts
     '<div class="slab answer"><div class="q">Signed in with Apple or Google</div>'+
       '<div class="a"><span class="big">'+pct(a.signed_in, a.cohort)+'</span><span class="of">of '+fmt(a.cohort)+' new players</span></div>'+
@@ -307,16 +307,21 @@ function renderAnswers(i){
 }
 
 // ---------- starting quests ----------
-const QUEST_TITLES = { sticks:'Collect 2 sticks', stones:'Collect 5 stones', stone_pickaxe:'Craft a stone pickaxe', copper:'Mine a copper ore', boar:'Kill 4 boars', leather:'Craft leather', leather_boots:'Craft leather boots', stone_axe:'Craft a stone axe', pine:'Chop a pine tree', flax:'Pick 10 flax', bowstring:'Craft a bowstring', pine_bow:'Fletch a pine bow', chickens:'Kill 5 chickens', bronze_bar:'Smelt a bronze bar', bronze_arrows:'Fletch bronze arrows', bronze_sword:'Smith a bronze sword', chicken:'Kill a chicken (old rail)', agility_5:'Train Agility to 5 (old rail)', oak_bow:'Fletch an oak bow (old rail)' };
+// the starting quests in the game, in order (starter.ts, 2026-09-29: a chicken fight and Go raiding lead)
+const QUEST_RAIL = ['chickens','raid','sticks','stones','stone_pickaxe','copper','boar','leather','leather_boots','stone_axe','pine','flax','bowstring','pine_bow','bronze_bar','bronze_arrows','bronze_sword'];
+const QUEST_TITLES = { raid:'Go raiding', sticks:'Collect 2 sticks', stones:'Collect 5 stones', stone_pickaxe:'Craft a stone pickaxe', copper:'Mine a copper ore', boar:'Kill 4 boars', leather:'Craft leather', leather_boots:'Craft leather boots', stone_axe:'Craft a stone axe', pine:'Chop a pine tree', flax:'Pick 10 flax', bowstring:'Craft a bowstring', pine_bow:'Fletch a pine bow', chickens:'Kill 5 chickens', bronze_bar:'Smelt a bronze bar', bronze_arrows:'Fletch bronze arrows', bronze_sword:'Smith a bronze sword', chicken:'Kill a chicken (old rail)', agility_5:'Train Agility to 5 (old rail)', oak_bow:'Fletch an oak bow (old rail)' };
 const hours = h => h==null ? '–' : h < 1 ? Math.round(h*60)+' min' : h < 48 ? Math.round(h)+'h' : Math.round(h/24)+'d';
 async function loadQuests(){
   const q = await api('/api/quests?days='+(DAYS===365?36500:DAYS)); if (!q || q.error) return;
   const base = Math.max(q.cohort, 1);
   document.getElementById('questsLabel').textContent = fmt(q.cohort)+' players finished onboarding in this window · '+fmt(q.any_quest)+' touched a quest · '+fmt(q.retired)+' hid the track';
   document.getElementById('quests').innerHTML = '<table><tbody><tr><th style="text-align:left">Quest</th><th style="text-align:left;width:34%">Completed</th><th>Started</th><th>Skipped</th><th>Median time from onboarding</th></tr>'+
-    (q.quests||[]).map((r,i)=>'<tr><td style="text-align:left">'+(i+1)+'. '+(QUEST_TITLES[r.id]||nice(r.id))+'</td>'+
+    // only quests still in the game, in rail order (Will 2026-09-29: "Train Agility to 5"
+    // and the other old-rail quests showed because old events still carry them)
+    QUEST_RAIL.map(id=>(q.quests||[]).find(r=>r.id===id)||{id,completed:0,started:0,skipped:0,median_hours:null}).map((r,i)=>'<tr><td style="text-align:left">'+(i+1)+'. '+(QUEST_TITLES[r.id]||nice(r.id))+'</td>'+
       '<td><div class="bar" style="grid-template-columns:1fr 46px"><div class="track"><div class="fill" style="width:'+Math.round(100*r.completed/base)+'%"></div></div><span class="n">'+fmt(r.completed)+'</span></div></td>'+
       '<td><span class="n">'+fmt(r.started)+'</span></td><td><span class="n">'+fmt(r.skipped)+'</span></td><td class="muted">'+hours(r.median_hours)+'</td></tr>').join('')+'</tbody></table>'+
+    (()=>{ const old=(q.quests||[]).filter(r=>r.id && !QUEST_RAIL.includes(r.id)); return old.length ? '<p class="muted" style="margin-top:6px">Not shown, no longer in the game: '+old.map(r=>(QUEST_TITLES[r.id]||nice(r.id))+' ('+fmt(r.completed)+' completed)').join(', ')+'.</p>' : ''; })()+
     '<p class="muted" style="margin-top:6px">Bars are share of the onboarding cohort. Started = tapped Start on the explain screen; a quest can complete without a Start (they did it on their own).</p>';
 }
 
