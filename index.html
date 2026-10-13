@@ -670,7 +670,13 @@ async function loadSummary(){
   document.getElementById('cards').innerHTML =
     card('Players', fmt(t.players ?? t.named), 'claimed a username')+card('Guests', fmt(t.guests ?? t.anon_installs), fmt(t.guests_tried ?? t.anon_tryers)+' tried a workout, '+fmt(t.guests_7d ?? 0)+' active this week')+
     card('Members', fmt(t.subs), '<span id="memSub">paying or on trial now</span>')+card('MRR', '$'+fmt(t.mrr))+
-    card('Active today', fmt(t.players_dau ?? t.dau), (t.dau-(t.players_dau??t.dau))+' guests')+card('Active 7 days', fmt(t.players_wau ?? t.wau), (t.wau-(t.players_wau??t.wau))+' guests')+card('Active 30 days', fmt(t.players_mau ?? t.mau), (t.mau-(t.players_mau??t.mau))+' guests')+card('Clans', fmt(t.clans));
+    // Will 2026-10-13: people, not accounts (a guest who signs in was counted twice), and how many are new (migration 0098)
+    card('Active today', '<span id="ap1">…</span>', '<span id="ap1s">last 24 hours</span>')+card('Active 7 days', '<span id="ap7">…</span>', '<span id="ap7s"></span>')+card('Active 30 days', '<span id="ap30">…</span>', '<span id="ap30s"></span>')+card('Clans', fmt(t.clans));
+  api('/api/active_people').then(a => { if (!a || a.error) return;
+    const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    set('ap1', fmt(a.d1)); set('ap1s', fmt(a.new1) + ' are new today');
+    set('ap7', fmt(a.d7)); set('ap7s', fmt(a.new7) + ' are new this week');
+    set('ap30', fmt(a.d30)); set('ap30s', fmt(a.new30) + ' are new this month'); }).catch(() => {});
   document.getElementById('digest').innerHTML =
     card('Claimed', fmt(td.signups)+delta(td.signups, yd.signups))+card('New guests', fmt(td.guests ?? 0)+delta(td.guests ?? 0, yd.guests ?? 0))+card('Active', fmt(td.active)+delta(td.active, yd.active))+card('Workouts', fmt(td.workouts)+delta(td.workouts, yd.workouts))+
     card('Reps', fmt(td.reps)+delta(td.reps, yd.reps))+card('Gold earned', fmt(td.gp)+delta(td.gp, yd.gp))+card('Unlocks', fmt(td.unlocks)+delta(td.unlocks, yd.unlocks))+card('Steps', fmt(td.steps)+delta(td.steps, yd.steps));
