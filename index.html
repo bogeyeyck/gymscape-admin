@@ -120,6 +120,51 @@
   #dash { display:none; }
   .muted { color:var(--stone); font-size:12.5px; }
   .warn { color:var(--danger); font-size:12.5px; }
+
+  /* What needs attention (2026-10-13, /api/insights_feed, migration 0097) */
+  .ins { display:grid; gap:6px; }
+  .ins .it { display:grid; grid-template-columns:14px 1fr auto; gap:10px; align-items:start; font-size:13.5px; line-height:1.45; padding:7px 4px; border-bottom:1px solid rgba(255,255,255,.05); }
+  .ins .it:last-child { border-bottom:0; }
+  .ins .dot { width:10px; height:10px; border-radius:50%; margin-top:5px; }
+  .ins .red .dot { background:var(--danger); box-shadow:0 0 6px var(--danger); }
+  .ins .amber .dot { background:var(--orange); }
+  .ins .info .dot { background:var(--stone); opacity:.6; }
+  .ins .info { color:var(--stone); }
+  .ins .tag { font:600 10px var(--f-head); text-transform:uppercase; letter-spacing:.1em; color:var(--stone); white-space:nowrap; }
+
+  /* Downloads to paid (2026-10-13, /api/simple_funnel, migration 0093) */
+  .sf { display:grid; gap:7px; }
+  .sf .row { display:grid; grid-template-columns:minmax(150px,230px) 1fr 74px 84px; gap:10px; align-items:center; font-size:13.5px; }
+  .sf .row.head { font:600 10px var(--f-head); text-transform:uppercase; letter-spacing:.12em; color:var(--stone); }
+  .sf .track { height:22px; border-radius:4px; background:rgba(10,11,14,.6); box-shadow:inset 0 1px 2px rgba(0,0,0,.7); overflow:hidden; position:relative; }
+  .sf .fill { height:100%; background:linear-gradient(90deg, var(--orange), var(--xp)); min-width:2px; }
+  .sf .row.money .fill { background:linear-gradient(90deg, #2f9e5f, #41d18a); }
+  .sf .cnt { position:absolute; left:8px; top:0; font:400 18px/22px var(--f-num); color:#fff; text-shadow:0 1px 2px #000; }
+  .sf .r { text-align:right; font-family:var(--f-num); font-size:17px; color:var(--xp); }
+  .sf .r.dim { color:var(--stone); font-size:15px; }
+  .sf .r.drop { color:var(--danger); }
+  .sf-dl { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px; font-size:12.5px; color:var(--stone); }
+  .sf-dl input { font:inherit; font-size:13px; color:var(--parch); background:rgba(10,11,14,.6); border:1px solid var(--edge); border-radius:14px; padding:5px 10px; width:110px; }
+  @media (max-width:640px){ .sf .row { grid-template-columns:1fr 62px 62px; gap:3px 8px; font-size:12.5px; } .sf .row > span:first-child { grid-column:1 / -1; } .sf .row.head > span:first-child { display:none; } }
+
+  /* Funnel & retention (2026-10-13) */
+  .gfil { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .gfil label { display:flex; flex-direction:column; gap:3px; }
+  .gfil select, .gfil input[type=date] { font:inherit; font-size:13px; color:var(--parch); background:rgba(10,11,14,.6); border:1px solid var(--edge); border-radius:14px; padding:5px 10px; text-shadow:none; }
+  .fun { display:grid; gap:6px; }
+  .fun .row { display:grid; grid-template-columns:minmax(150px,240px) 1fr 70px 70px 80px; gap:10px; align-items:center; font-size:13px; }
+  .fun .row.head { font:600 10px var(--f-head); text-transform:uppercase; letter-spacing:.12em; color:var(--stone); }
+  .fun .track { height:16px; border-radius:4px; background:rgba(10,11,14,.6); box-shadow:inset 0 1px 2px rgba(0,0,0,.7); overflow:hidden; position:relative; }
+  .fun .fill { height:100%; background:linear-gradient(90deg, var(--orange), var(--xp)); }
+  .fun .cnt { position:absolute; left:6px; top:0; font:400 15px/16px var(--f-num); color:#fff; text-shadow:0 1px 2px #000; }
+  .fun .r { text-align:right; font-family:var(--f-num); font-size:16px; color:var(--xp); }
+  .fun .r.dim { color:var(--stone); font-size:14px; }
+  .fun .r.drop { color:var(--danger); }
+  .stuck { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:10px; }
+  .stuck h3 { font:700 13px var(--f-head); color:var(--orange); margin-bottom:4px; }
+  .defs { font-size:12.5px; color:var(--stone); line-height:1.5; }
+  .defs b { color:var(--parch); font-weight:600; }
+  @media (max-width:700px) { .fun .row { grid-template-columns:120px 1fr 52px 52px; } .fun .row > :nth-child(5) { display:none; } }
 </style></head>
 <body>
 <div id="login">
@@ -137,7 +182,7 @@
   <div class="topbar">
     <div style="display:flex;gap:14px;align-items:center">
       <h1 class="font-display">GymScape</h1>
-      <div class="seg" id="tabs"><button data-t="dash" class="on">Dashboard</button><button data-t="ac">Anti-cheat <span id="acCount"></span></button></div>
+      <div class="seg" id="tabs"><button data-t="dash" class="on">Dashboard</button><button data-t="growth">Funnel &amp; retention</button><button data-t="ac">Anti-cheat <span id="acCount"></span></button></div>
     </div>
     <div style="display:flex;gap:12px;align-items:center">
       <div class="seg" id="range"><button data-d="7">7d</button><button data-d="30" class="on">30d</button><button data-d="90">90d</button><button data-d="365">All</button></div>
@@ -147,6 +192,16 @@
   </div>
 
   <div id="tabDash">
+  <h2 style="margin-top:4px">What needs attention <small id="insLabel"></small> <button class="fbtn" id="insRun" style="margin-left:6px">Run the checks now</button></h2>
+  <div class="slab"><div class="ins" id="ins"></div>
+    <p class="muted" style="margin-top:8px">Checked every 12 hours by the server (8 am and 8 pm New York time) (crashes and errors, reps by phone, the camera, Play reviews, A/B tests, groups doing worse, intro steps, checkout). Red and amber ones are pushed to your phones once a day each.</p></div>
+
+  <h2>First open to paid <span class="seg" id="sfSeg" style="margin-left:6px"><button data-p="all" class="on">All</button><button data-p="android">Android</button><button data-p="ios">iOS</button></span> <small id="sfLabel"></small></h2>
+  <div class="slab">
+    <div class="sf" id="sf"></div>
+    <p class="muted" id="sfNote" style="margin-top:8px"></p>
+  </div>
+
   <div class="cards" id="cards"></div>
 
   <h2>The questions <small id="qLabel"></small></h2>
@@ -184,10 +239,13 @@
       <button class="fbtn" data-f="trial">Trials</button>
       <button class="fbtn" data-f="cancelled">Cancelled</button>
       <button class="fbtn" data-f="lapsed">Lapsed</button>
-      <button class="fbtn" data-f="named">Named</button>
-      <button class="fbtn" data-f="guest">Guests</button>
       <button class="fbtn" data-f="active7">Active 7d</button>
       <button class="fbtn" data-f="dormant">Dormant 14d</button>
+      <span style="width:8px"></span>
+      <!-- named players, guests, or both (Will 2026-09-29); a guest who later signed in is never counted as a guest -->
+      <button class="fbtn wbtn on" data-w="named">Named</button>
+      <button class="fbtn wbtn" data-w="guest">Guests</button>
+      <button class="fbtn wbtn" data-w="both">Both</button>
       <span style="width:8px"></span>
       <button class="fbtn pbtn on" data-p="any">Any platform</button>
       <button class="fbtn pbtn" data-p="ios">iOS</button>
@@ -195,7 +253,7 @@
     </div>
     <div style="overflow-x:auto"><table id="users"><thead><tr>
       <th data-k="username">Player</th><th data-k="tier">Tier</th><th data-k="platform">Platform</th><th data-k="same_phone">Same phone as</th><th data-k="signed_up">Signed up</th><th data-k="last_seen">Last seen</th>
-      <th data-k="level">Level</th><th data-k="reps">Reps</th><th data-k="workout_days">Days trained</th><th data-k="push_permission">Notifications</th><th data-k="providers">Sign-in</th><th data-k="paywall_viewed">Paywall</th><th data-k="app_version">Build</th>
+      <th data-k="level">Level</th><th data-k="reps">Reps</th><th data-k="workout_days">Days trained</th><th data-k="push_permission">Notifications</th><th data-k="camera_permission">Camera</th><th data-k="providers">Sign-in</th><th data-k="paywall_viewed">Paywall</th><th data-k="app_version">Build</th>
     </tr></thead><tbody></tbody></table></div>
     <div class="pager"><span class="muted" id="pageInfo"></span><button class="fbtn" id="pgPrev">Previous</button><button class="fbtn" id="pgNext">Next</button></div>
   </div>
@@ -212,6 +270,46 @@
     <div><h2 style="margin-top:0">Campaign links</h2><div class="slab"><table id="campaigns"><tbody></tbody></table></div></div>
     <div><h2 style="margin-top:0">RevenueCat <small id="rcLabel"></small></h2><div class="slab" id="rc"></div></div>
   </div>
+  </div>
+
+  <div id="tabGrowth" style="display:none">
+    <h2 style="margin-top:4px">Funnel &amp; retention <small id="gLabel"></small></h2>
+    <p class="muted" style="margin:2px 0 10px;max-width:1000px">Everyone who opened the app, counted as people: a guest who later signs in with Apple, Google or Discord is one person from the day they started. Nothing is deleted. The numbers are rebuilt from the raw events every 15 minutes.</p>
+    <div class="slab gfil" id="gFilters">
+      <label><span class="label">Started from</span><input type="date" id="gFrom"></label>
+      <label><span class="label">to</span><input type="date" id="gTo"></label>
+      <span class="seg" id="gPreset"><button data-d="7">7d</button><button data-d="14" class="on">14d</button><button data-d="30">30d</button><button data-d="90">90d</button></span>
+      <label><span class="label">Platform</span><select id="gPlatform"></select></label>
+      <label><span class="label">First build</span><select id="gBuild"></select></label>
+      <label><span class="label">Intro test</span><select id="gIntro"></select></label>
+      <label><span class="label">Setup-later test</span><select id="gLater"></select></label>
+      <label><span class="label">Source</span><select id="gSource"></select></label>
+      <label><span class="label">Named</span><select id="gNamed"><option value="">Everyone</option><option value="yes">Named only</option><option value="no">Never named</option></select></label>
+    </div>
+    <div class="cards" id="gKpis" style="margin-top:12px"></div>
+    <h2>The funnel <small>how many reached each step, out of everyone and out of the step before, and the median time from opening the app</small></h2>
+    <div class="slab"><div class="fun" id="gFunnel"></div></div>
+    <h2>Where they stop <small>people stuck before a step who have not been back for 48 hours: the last intro beat and the last screen they saw</small></h2>
+    <div class="stuck" id="gStuck"></div>
+    <div class="grid2" style="margin-top:6px">
+      <div><h2>Retention curve <small>back on day N, out of the people whose day N is over</small></h2><div class="slab"><canvas id="gCurve" style="max-height:260px"></canvas></div></div>
+      <div><h2>By cohort <span class="seg" id="gGrain" style="margin-left:6px"><button data-g="day" class="on">Day</button><button data-g="week">Week</button></span></h2>
+        <div class="slab" style="overflow-x:auto;max-height:340px;overflow-y:auto"><table class="ret" id="gCohorts"><thead></thead><tbody></tbody></table></div></div>
+    </div>
+    <h2>Compare <span class="seg" id="gDim" style="margin-left:6px"><button data-v="platform" class="on">Platform</button><button data-v="build">Build</button><button data-v="intro_arm">Intro test</button><button data-v="later_arm">Setup-later test</button><button data-v="source">Source</button></span></h2>
+    <div class="slab" style="overflow-x:auto"><table id="gBreak"><thead></thead><tbody></tbody></table></div>
+    <h2>How these are counted</h2>
+    <div class="slab defs" id="gDefs">
+      <p><b>Person.</b> One per person, not per account. Every install starts as a guest account; a guest who signs in becomes a new account with the guest merged into it, and both count as one person from the guest's first day. Your own phones are left out unless "Show my devices" is on.</p>
+      <p><b>Started.</b> When the person's first account was made (their install). The date filters and cohorts use the New York calendar day.</p>
+      <p><b>Active.</b> Any app event except a push arriving in the background, any rep, or any coin change.</p>
+      <p><b>Back on day N.</b> Active between N and N+1 days (24-hour periods) after starting. Only counted once that period is over, so today's starters never pull the numbers down.</p>
+      <p><b>Activated.</b> At least one counted rep in the first 24 hours.</p>
+      <p><b>Funnel steps.</b> The first time each step happened. A step counts even if an earlier one was skipped (older builds do not have every intro beat, and some players name themselves before finishing the intro), so a later step can be bigger than the one before it.</p>
+      <p><b>Source.</b> From each install's first event; the web reads utm_source, phones say "store" until the Android install referrer is added, and "existing" is an app update on a phone that already had GymScape. "unknown" is anyone from before 2026-10-13.</p>
+      <p><b>Missing guests before 2026-10-13.</b> Until then a nightly job deleted guest accounts with no reps, steps or coins after 3 days, with their events. That removed the guest half of most people who signed in during the intro (1,126 people: they still count, but their first minutes and platform are gone, which is most of the "unknown" platform) and about 400 installs who never signed in (PostHog saw about 3,600 devices; there are 3,228 people here). Starts and rates before that date leave those 400 out and look a few points better than they were. From 2026-10-13 nothing is deleted.</p>
+      <p id="gQuality"></p>
+    </div>
   </div>
 
   <div id="tabAc" style="display:none">
@@ -257,7 +355,7 @@ const nice = s => String(s||'').replace(/[_-]+/g,' ');
 const XP_TABLE = (() => { const P=1.15, G=Math.pow(1e7/(100*Math.pow(98,P)),1/97), A=100/G; const t=[0,0]; for (let l=2;l<=99;l++) t.push(Math.round(A*Math.pow(l-1,P)*Math.pow(G,l-1))); t[99]=1e7; return t; })();
 const levelFor = xp => { for (let l=99;l>=1;l--) if (xp >= XP_TABLE[l]) return l; return 1; };
 
-let USERS=[], PAGE=0, PER=50, DAYS=30, FILTER='all', PLAT='any', SORT={k:'last_seen',dir:-1}, RET=null, RETSEG='all', FEEDTIMER=null, SEEN=new Set(), CHARTS=[];
+let USERS=[], PAGE=0, PER=50, DAYS=30, FILTER='all', WHO='named', PLAT='any', SORT={k:'last_seen',dir:-1}, RET=null, RETSEG='all', FEEDTIMER=null, SEEN=new Set(), CHARTS=[];
 const GRID='rgba(255,255,255,.06)', TICK='#969cac';
 
 function card(label, v, sub=''){ return '<div class="slab card"><div class="big">'+v+'</div><span class="label">'+label+'</span>'+(sub?'<div class="sub">'+sub+'</div>':'')+'</div>'; }
@@ -351,6 +449,8 @@ const subDetail = u => {
 const isCancelled = u => u.sub_status==='cancelled' && (u.tier==='trial'||u.tier==='member');
 const tierTag = u => '<span class="tag '+u.tier+'">'+u.tier+'</span>'+(isCancelled(u)?' <span class="tag cancelled" title="Auto-renew is off. Access ends when the current period runs out.">cancelled</span>':'')+(u.row_kind!=='user'?' <span class="tag '+u.row_kind+'">'+u.row_kind+'</span>':'');
 const permTag = u => '<span class="tag '+(u.push_permission==='allowed'?'allowed':u.push_permission==='denied'?'denied':'')+'">'+u.push_permission+'</span>'+(u.push_decided_hours!=null?' <span class="muted">after '+(u.push_decided_hours<0.05?'right away':u.push_decided_hours<1?Math.round(u.push_decided_hours*60)+' min':u.push_decided_hours<48?Math.round(u.push_decided_hours)+'h':Math.round(u.push_decided_hours/24)+'d')+'</span>':'');
+// camera permission (Will 2026-09-29): the latest answer to the OS prompt; builds that did not log it count a camera that ran as allowed
+const camTag = u => '<span class="tag '+(u.camera_permission==='allowed'?'allowed':u.camera_permission==='denied'?'denied':'')+'">'+(u.camera_permission||'not asked')+'</span>';
 const who = u => u.username ? esc(u.username) : (u.row_kind==='user' ? '<span class="stone">guest</span>' : '<span class="stone">anonymous</span>');
 function applyUsers(){
   const q=(document.getElementById('q').value||'').toLowerCase();
@@ -362,10 +462,12 @@ function applyUsers(){
   if(FILTER==='trial') list=list.filter(u=>u.tier==='trial');
   if(FILTER==='cancelled') list=list.filter(isCancelled);
   if(FILTER==='lapsed') list=list.filter(u=>u.tier==='lapsed');
-  if(FILTER==='named') list=list.filter(u=>u.username);
-  // players = claimed (a username); guests live under their own filter and stay out of the others
-  if(FILTER==='guest') list=list.filter(u=>u.row_kind==='user'&&!u.username);
-  else list=list.filter(u=>u.row_kind!=='user'||u.username);
+  // players = claimed (a username); guests = never claimed one. A guest whose
+  // progress moved to a named account when they signed in (merged_into) is that
+  // named player now, so they appear under neither (Will 2026-09-29)
+  const isNamed = u => u.row_kind!=='user' || !!u.username;
+  const isGuest = u => u.row_kind==='user' && !u.username && !u.merged_into;
+  list = list.filter(u => WHO==='named' ? isNamed(u) : WHO==='guest' ? isGuest(u) : (isNamed(u) || isGuest(u)));
   if(FILTER==='active7') list=list.filter(u=>seen(u)<7*864e5);
   if(FILTER==='dormant') list=list.filter(u=>seen(u)>14*864e5);
   if(PLAT!=='any') list=list.filter(u=>(u.platform||'').includes(PLAT));
@@ -383,14 +485,15 @@ function applyUsers(){
     '<td>'+dateS(u.signed_up)+'</td><td>'+ago(u.last_seen)+'</td>'+
     '<td><span class="n">'+u.level+'</span></td>'+
     '<td><span class="n">'+fmt(u.reps)+'</span></td><td><span class="n">'+fmt(u.workout_days)+'</span></td>'+
-    '<td>'+permTag(u)+'</td><td>'+(u.providers||(u.row_kind==='user'?'guest':'–'))+'</td>'+
+    '<td>'+permTag(u)+'</td><td>'+camTag(u)+'</td><td>'+(u.providers||(u.row_kind==='user'?'guest':'–'))+'</td>'+
     '<td>'+(u.paywall_viewed?fmt(u.paywall_viewed)+'x'+(u.subscribe_started?' <span class="goldc">tapped</span>':''):'<span class="stone">no</span>')+'</td>'+
-    '<td class="muted">'+(u.app_version?u.app_version+' '+(u.app_sha||''):'–')+'</td></tr>').join('') || '<tr><td class="muted" colspan="13">Nobody matches.</td></tr>';
+    '<td class="muted">'+(u.app_version?u.app_version+' '+(u.app_sha||''):'–')+'</td></tr>').join('') || '<tr><td class="muted" colspan="14">Nobody matches.</td></tr>';
 }
 document.querySelectorAll('#users th').forEach(th=>th.onclick=()=>{ const k=th.dataset.k; SORT = SORT.k===k ? {k,dir:-SORT.dir} : {k,dir:-1}; PAGE=0; applyUsers(); });
 document.getElementById('pgPrev').onclick=()=>{ PAGE=Math.max(0,PAGE-1); applyUsers(); };
 document.getElementById('pgNext').onclick=()=>{ PAGE++; applyUsers(); };
 document.querySelectorAll('.fbtn[data-f]').forEach(b=>b.onclick=()=>{ FILTER=b.dataset.f; PAGE=0; document.querySelectorAll('.fbtn[data-f]').forEach(x=>x.classList.toggle('on',x===b)); applyUsers(); });
+document.querySelectorAll('.wbtn').forEach(b=>b.onclick=()=>{ WHO=b.dataset.w; PAGE=0; document.querySelectorAll('.wbtn').forEach(x=>x.classList.toggle('on',x===b)); applyUsers(); });
 document.querySelectorAll('.pbtn').forEach(b=>b.onclick=()=>{ PLAT=b.dataset.p; PAGE=0; document.querySelectorAll('.pbtn').forEach(x=>x.classList.toggle('on',x===b)); applyUsers(); });
 document.getElementById('q').oninput=()=>{ PAGE=0; applyUsers(); };
 
@@ -405,7 +508,7 @@ async function drill(id, kind){
     kv('Signed up', dateS(u.signed_up))+kv('Last seen', ago(u.last_seen)+' ago')+kv('Platform', (u.platform||'–')+(u.app_version?' <span class="muted">'+u.app_version+'</span>':''))+
     kv('Sign-in', u.providers||(kind==='user'?'guest':'–'))+kv('Level', '<span class="mid">'+(u.total_level||'–')+'</span> <span class="muted">total, combat '+(u.combat_level||'–')+'</span>')+
     kv('Gold', '<span class="mid">'+fmt(u.coins)+'</span>')+kv('Reps', '<span class="mid">'+fmt(u.reps)+'</span> <span class="muted">'+fmt(u.workout_days)+' days</span>')+kv('Steps', '<span class="mid">'+fmt(u.steps)+'</span>')+
-    kv('Clan', u.clan?esc(u.clan):'–')+kv('Notifications', permTag(u))+
+    kv('Clan', u.clan?esc(u.clan):'–')+kv('Notifications', permTag(u))+kv('Camera', camTag(u))+(u.merged_into?kv('Signed in as', esc(u.merged_into)):'')+
     kv('Pushes', fmt(u.pushes_logged)+' scheduled, '+fmt(u.pushes_sent)+' accepted, '+fmt(u.pushes_failed)+' refused, '+fmt(u.pushes_opened)+' opened')+
     kv('Types on', u.has_prefs?Object.entries(prefs).filter(([,v])=>v).map(([k])=>nice(k)).join(', ')||'none':'defaults')+
     kv('Paywall', u.paywall_viewed?fmt(u.paywall_viewed)+' views, '+fmt(u.subscribe_started)+' taps, '+fmt(u.subscribe_completed)+' paid':'never shown')+
@@ -416,7 +519,10 @@ async function drill(id, kind){
   if (kind!=='user') { document.getElementById('tl').textContent='No account here to show a timeline for.'; return; }
   try {
     const d = await api('/api/user?id='+id);
-    document.getElementById('tl').outerHTML = '<table><tbody>'+(d.timeline||[]).map(t=>'<tr><td class="muted">'+new Date(t.created_at).toLocaleString()+'</td><td>'+nice(t.kind)+'</td><td>'+exName(t.label)+'</td><td class="muted">'+esc(t.detail||'')+'</td></tr>').join('')+'</tbody></table>';
+    // the whole person (2026-10-13, person_id): the guest they started as and every account, newest first
+    const accts = (d.accounts||[]);
+    const head = accts.length > 1 ? '<p class="muted" style="margin:4px 0 6px">One person, '+accts.length+' accounts: '+accts.map(a => (a.guest?'guest ':'account ')+esc(String(a.id).slice(0,8))+' since '+dateS(a.since)).join(', ')+'. Rows marked "as guest" happened before they signed in.</p>' : '';
+    document.getElementById('tl').outerHTML = head+'<table><tbody>'+(d.timeline||[]).map(t=>'<tr><td class="muted">'+new Date(t.created_at).toLocaleString()+'</td><td>'+nice(t.kind)+(t.as_guest?' <span class="tag anonymous">as guest</span>':'')+'</td><td>'+exName(t.label)+'</td><td class="muted">'+esc(t.detail||'')+'</td></tr>').join('')+'</tbody></table>';
   } catch { document.getElementById('tl').textContent='Timeline unavailable.'; }
 }
 
@@ -576,7 +682,7 @@ async function loadSummary(){
   api('/api/campaigns?days='+DAYS).then(c => { document.querySelector('#campaigns tbody').innerHTML = (c.campaigns||[]).map(x=>'<tr><td>/go/'+esc(x.campaign)+'</td><td style="text-align:right"><span class="n">'+fmt(x.clicks)+'</span> clicks</td><td class="muted" style="text-align:right">'+ago(x.last)+' ago</td></tr>').join('') || '<tr><td class="muted">No clicks yet.</td></tr>'; }).catch(()=>{});
   document.querySelector('#clans tbody').innerHTML = (d.clans_list||[]).map(c=>'<tr><td>'+esc(c.name)+'</td><td><span class="n">'+fmt(c.member_count)+'</span> members</td><td style="text-align:right"><span class="n">'+fmt(c.total_reps)+'</span> reps</td></tr>').join('') || '<tr><td class="muted">No clans yet.</td></tr>';
 }
-document.getElementById('internalBtn').onclick=()=>{ INTERNAL=!INTERNAL; document.getElementById('internalBtn').classList.toggle('on',INTERNAL); document.getElementById('internalBtn').textContent=INTERNAL?'Showing my devices':'Show my devices'; SEEN=new Set(); loadSummary().then(()=>pollFeed(true)); };
+document.getElementById('internalBtn').onclick=()=>{ INTERNAL=!INTERNAL; document.getElementById('internalBtn').classList.toggle('on',INTERNAL); document.getElementById('internalBtn').textContent=INTERNAL?'Showing my devices':'Show my devices'; SEEN=new Set(); loadSummary().then(()=>pollFeed(true)); loadSimpleFunnel(); if (TAB==='growth') loadGrowth(); };
 document.querySelectorAll('#range button').forEach(b=>b.onclick=()=>{ DAYS=Number(b.dataset.d); document.querySelectorAll('#range button').forEach(x=>x.classList.toggle('on',x===b)); loadSummary(); });
 
 // ---------- anti-cheat (Will 2026-09-29, migration 0072) ----------
@@ -778,19 +884,141 @@ document.getElementById('acFlagBtn').onclick = async () => {
   if (!u || !u.id) { alert('No player called '+q); return; }
   await acAct(u.id, 'flag'); openAc(u.id);
 };
+
+// ---------- funnel & retention (2026-10-13, /api/analytics, migration 0090) ----------
+const nyToday = () => new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+const isoDay = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const G = { days: 14, from: null, to: null, platform: '', build: '', intro_arm: '', later_arm: '', source: '', named: '', grain: 'day', dim: 'platform' };
+let GDATA = null, GCHART = null, GBUSY = 0;
+function gRange(days){ const t = nyToday(); const f = new Date(t); f.setDate(f.getDate() - (days - 1)); G.from = isoDay(f); G.to = isoDay(t); document.getElementById('gFrom').value = G.from; document.getElementById('gTo').value = G.to; }
+const rate = (a, b) => b > 0 ? (100 * a / b).toFixed(b >= 200 ? 1 : 0) + '%' : '–';
+async function loadGrowth(){
+  if (!G.from) gRange(G.days);
+  const f = {}; for (const k of ['from','to','platform','build','intro_arm','later_arm','source','named','grain','dim']) if (G[k]) f[k] = G[k];
+  const my = ++GBUSY;
+  document.getElementById('gLabel').textContent = 'loading...';
+  let d; try { d = await api('/api/analytics?f=' + encodeURIComponent(JSON.stringify(f))); } catch { return; }
+  if (my !== GBUSY) return;   // a newer request is on its way
+  if (d && d.error) { document.getElementById('gLabel').textContent = 'error: ' + d.error; return; }
+  GDATA = d; renderGrowth();
+}
+function fillSelect(id, values, cur, all){ const el = document.getElementById(id); const v = (values||[]).filter(x => x !== null);
+  el.innerHTML = '<option value="">'+all+'</option>' + v.map(x => '<option'+(x===cur?' selected':'')+' value="'+esc(x)+'">'+esc(nice(x))+'</option>').join(''); }
+function renderGrowth(){
+  const d = GDATA; if (!d) return;
+  const k = d.kpis || {};
+  document.getElementById('gLabel').textContent = fmt(k.people)+' people started '+dateS(d.range.from+'T12:00')+' to '+dateS(d.range.to+'T12:00')+' · updated '+ago(d.refreshed)+' ago';
+  const o = d.options || {};
+  fillSelect('gPlatform', o.platform, G.platform, 'All'); fillSelect('gBuild', o.build, G.build, 'All builds');
+  fillSelect('gIntro', o.intro_arm, G.intro_arm, 'All'); fillSelect('gLater', o.later_arm, G.later_arm, 'All'); fillSelect('gSource', o.source, G.source, 'All');
+  const kc = (label, a, b, sub) => card(label, rate(a, b), fmt(a)+' of '+fmt(b)+(sub?' · '+sub:''));
+  document.getElementById('gKpis').innerHTML =
+    card('People started', fmt(k.people)) +
+    kc('Activated', k.activated, k.people, 'a rep in 24 h') +
+    kc('Finished the intro', k.onboarded, k.people) +
+    kc('Back on day 1', k.d1, k.d1_base) +
+    kc('Back on day 7', k.d7, k.d7_base) +
+    kc('Back on day 30', k.d30, k.d30_base) +
+    kc('Named', k.named, k.people) +
+    kc('Signed in', k.signed_in, k.people) +
+    kc('Members', k.members, k.people);
+  // the path (the intro in order, then playing) and the milestones (any time, each out of everyone)
+  const mins = m => m === null || m === undefined ? '–' : m < 1 ? Math.round(m*60)+' s' : m < 120 ? Math.round(m)+' min' : m < 2880 ? (m/60).toFixed(1)+' h' : (m/1440).toFixed(1)+' d';
+  const all = d.funnel || []; const top = all.length ? all[0].n : 0;
+  const rows = (list, withPrev) => list.map((s, i) => { const prev = i ? list[i-1].n : s.n; const p = top ? 100 * s.n / top : 0; const pp = prev ? 100 * s.n / prev : 0;
+    const prevCell = !withPrev || !i ? '<span class="r dim"></span>' : pp > 100.5 ? '<span class="r dim" title="More people reached this than the step before: some skip a step (Set up later, older builds)">skip</span>' : '<span class="r '+(pp < 70 ? 'drop' : 'dim')+'">'+rate(s.n, prev)+'</span>';
+    return '<div class="row"><span>'+esc(s.label)+'</span><div class="track"><div class="fill" style="width:'+Math.min(100,p).toFixed(1)+'%"></div><span class="cnt">'+fmt(s.n)+'</span></div>'+
+      '<span class="r">'+rate(s.n, top)+'</span>'+prevCell+'<span class="r dim">'+(s.key === 'start' ? '' : mins(s.median_min))+'</span></div>'; }).join('');
+  const head = (a, b) => '<div class="row head"><span>'+a+'</span><span>People</span><span style="text-align:right">of all</span><span style="text-align:right">'+b+'</span><span style="text-align:right">median time</span></div>';
+  document.getElementById('gFunnel').innerHTML = head('The intro, in order', 'of step before') + rows(all.filter(s => s.grp === 'path'), true) +
+    '<div style="height:10px"></div>' + head('Milestones (any time)', '') + rows(all.filter(s => s.grp === 'milestone'), false);
+  // where they stop
+  const lst = (arr, base) => (arr||[]).map(x => bar(esc(nice(x.v)), x.n, base).replace('<span class="n">', '<span class="n" title="'+x.n+' people">')).join('');
+  document.getElementById('gStuck').innerHTML = (d.dropoff||[]).length ? (d.dropoff||[]).map(x =>
+    '<div class="slab"><h3>Never reached: '+esc(x.step)+' <span class="stone">('+fmt(x.lost)+')</span></h3>'+
+    '<div class="label" style="margin:4px 0">Last intro beat</div>'+lst(x.beats, x.lost)+
+    '<div class="label" style="margin:8px 0 4px">Last screen</div>'+lst(x.screens, x.lost)+'</div>').join('')
+    : '<div class="slab muted">Nobody stuck in this selection.</div>';
+  // curve
+  const cv = (d.curve||[]).filter(c => c.base > 0);
+  if (GCHART) GCHART.destroy();
+  GCHART = new Chart(document.getElementById('gCurve'), { type: 'line',
+    data: { labels: cv.map(c => 'day '+c.d), datasets: [{ label: 'back on day N', data: cv.map(c => +(100*c.back/c.base).toFixed(1)), borderColor: '#ffd84d', backgroundColor: '#ffd84d2b', fill: true, tension: .3, pointRadius: 2, borderWidth: 2 }] },
+    options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y+'% ('+fmt(cv[c.dataIndex].back)+' of '+fmt(cv[c.dataIndex].base)+')' } } },
+      scales: { x: { ticks: { color: TICK, maxTicksLimit: 11 }, grid: { color: GRID } }, y: { ticks: { color: TICK, callback: v => v+'%' }, grid: { color: GRID }, beginAtZero: true, suggestedMax: 60 } } } });
+  // cohorts
+  const cell = (a, b) => { if (!b) return '<td><span class="cell empty">·</span></td>'; const p = Math.round(100*a/b); return '<td title="'+a+' of '+b+'"><span class="cell" style="background:'+heat(p)+'">'+p+'%</span></td>'; };
+  document.querySelector('#gCohorts thead').innerHTML = '<tr><th style="text-align:left">'+(G.grain==='week'?'Week of':'Day')+'</th><th>People</th><th>Activated</th><th>Day 1</th><th>Day 7</th><th>Day 30</th></tr>';
+  document.querySelector('#gCohorts tbody').innerHTML = (d.cohorts||[]).map(c => '<tr><td style="text-align:left">'+c.cohort+'</td><td>'+fmt(c.size)+'</td>'+cell(c.activated, c.size)+cell(c.d1, c.d1_base)+cell(c.d7, c.d7_base)+cell(c.d30, c.d30_base)+'</tr>').join('') || '<tr><td class="muted" colspan="6">Nobody in this selection.</td></tr>';
+  // breakdown
+  document.querySelector('#gBreak thead').innerHTML = '<tr><th>'+esc(nice(G.dim))+'</th><th>People</th><th>Activated</th><th>Finished intro</th><th>Named</th><th>Day 1</th><th>Day 7</th><th>Members</th></tr>';
+  const td = (a, b) => '<td title="'+a+' of '+b+'">'+rate(a, b)+'</td>';
+  document.querySelector('#gBreak tbody').innerHTML = (d.breakdown||[]).map(b => '<tr><td>'+esc(nice(b.value))+'</td><td><span class="n">'+fmt(b.people)+'</span></td>'+td(b.activated,b.people)+td(b.onboarded,b.people)+td(b.named,b.people)+td(b.d1,b.d1_base)+td(b.d7,b.d7_base)+td(b.members,b.people)+'</tr>').join('');
+  const q = d.quality || {};
+  document.getElementById('gQuality').innerHTML = '<b>Data checks.</b> '+fmt(q.unknown_platform)+' people in this selection have no app-open event (no platform or build known). '+fmt(q.with_source)+' have a known install source. '+fmt(q.merged_people)+' are a guest and a signed-in account counted as one. In the last 24 hours, '+fmt(q.events_24h_with_context)+' of '+fmt(q.events_24h)+' events carried the install and session stamp (builds from 2026-10-13 on).';
+}
+document.getElementById('gPreset').querySelectorAll('button').forEach(b => b.onclick = () => { document.querySelectorAll('#gPreset button').forEach(x => x.classList.toggle('on', x===b)); G.days = +b.dataset.d; gRange(G.days); loadGrowth(); });
+document.getElementById('gFrom').onchange = e => { G.from = e.target.value; document.querySelectorAll('#gPreset button').forEach(x => x.classList.remove('on')); loadGrowth(); };
+document.getElementById('gTo').onchange = e => { G.to = e.target.value; document.querySelectorAll('#gPreset button').forEach(x => x.classList.remove('on')); loadGrowth(); };
+for (const [id, key] of [['gPlatform','platform'],['gBuild','build'],['gIntro','intro_arm'],['gLater','later_arm'],['gSource','source'],['gNamed','named']])
+  document.getElementById(id).onchange = e => { G[key] = e.target.value; loadGrowth(); };
+document.querySelectorAll('#gGrain button').forEach(b => b.onclick = () => { document.querySelectorAll('#gGrain button').forEach(x => x.classList.toggle('on', x===b)); G.grain = b.dataset.g; loadGrowth(); });
+document.querySelectorAll('#gDim button').forEach(b => b.onclick = () => { document.querySelectorAll('#gDim button').forEach(x => x.classList.toggle('on', x===b)); G.dim = b.dataset.v; loadGrowth(); });
+
+// ---------- what needs attention (Will 2026-10-13: checks that run by themselves; migration 0097, insights function) ----------
+const SRC = { db: 'players', posthog: 'phones', play: 'Play', };
+async function loadInsights(){
+  let d; try { d = await api('/api/insights_feed'); } catch { return; }
+  if (!d || d.error) { document.getElementById('insLabel').textContent = 'error: ' + (d && d.error); return; }
+  document.getElementById('insLabel').textContent = d.run_at ? 'last checked ' + ago(d.run_at) + ' ago' : 'not run yet';
+  const items = d.items || [];
+  document.getElementById('ins').innerHTML = items.length ? items.map(x => '<div class="it '+esc(x.severity)+'"><span class="dot"></span><span>'+esc(x.title)+'</span><span class="tag">'+esc(x.kind)+' · '+esc(SRC[x.source] || x.source)+'</span></div>').join('')
+    : '<div class="muted">Nothing found.</div>';
+}
+document.getElementById('insRun').onclick = async () => {
+  const b = document.getElementById('insRun'); b.disabled = true; b.textContent = 'Checking...';
+  try { await fetch(API + '/api/insights_run', { method: 'POST', headers: { Authorization: 'Bearer ' + (tok() || '') } }); } catch {}
+  b.disabled = false; b.textContent = 'Run the checks now'; loadInsights();
+};
+
+// ---------- first open to paid (Will 2026-10-13: "a clear funnel ... all the way to conversion to paid"; then "don't do
+// topline downloads since you don't know ... do the most base layer possible": the first step is opening the app) ----------
+let SF = null, SFP = 'all', SFEDIT = false;
+async function loadSimpleFunnel(){ try { const d = await api('/api/simple_funnel'); if (d && !d.error) { SF = d; renderSimpleFunnel(); } else document.getElementById('sfLabel').textContent = 'error: ' + (d && d.error); } catch {} }
+function renderSimpleFunnel(){
+  const d = SF; if (!d) return;
+  const c = (d.columns || {})[SFP] || {};
+  const steps = (d.steps || []).filter(s => s.key !== 'downloads');
+  const top = c.opened || 0;
+  const pct = (a, b) => b > 0 ? (100 * a / b < 1 ? (100 * a / b).toFixed(2) : (100 * a / b).toFixed(1)) + '%' : '–';
+  document.getElementById('sfLabel').textContent = 'all time · people since ' + dateS(d.first_person) + ' · updated ' + ago(d.refreshed) + ' ago';
+  document.getElementById('sf').innerHTML = '<div class="row head"><span>Step</span><span>People</span><span style="text-align:right">of first opens</span><span style="text-align:right">of step above</span></div>' +
+    steps.map((s, i) => { const n = c[s.key]; if (n === null || n === undefined) return '<div class="row"><span>'+esc(s.label)+'</span><span class="muted">not entered yet</span><span></span><span></span></div>';
+      const prev = i ? c[steps[i-1].key] : null; const w = top ? Math.min(100, 100 * n / top) : 0; const pp = prev ? 100 * n / prev : null;
+      return '<div class="row'+(['paid','paying'].includes(s.key)?' money':'')+'"><span>'+esc(s.label)+'</span><div class="track"><div class="fill" style="width:'+w.toFixed(2)+'%"></div><span class="cnt">'+fmt(n)+'</span></div>'+
+        '<span class="r">'+(i ? pct(n, top) : '')+'</span><span class="r '+(pp !== null && pp < 50 ? 'drop' : 'dim')+'">'+(pp === null ? '' : pp > 100 ? '–' : pct(n, prev))+'</span></div>'; }).join('');
+  document.getElementById('sfNote').innerHTML = '<b>How to read it.</b> It starts at the first time someone opened the app, the earliest thing the app can see (a store download that was never opened is invisible to it). Every step is a person (a guest and the account they signed in with count once), your own phones left out, and each step counts everyone who ever reached it, so a member who skipped the intro still counts. Paid means a subscription that went past its free trial. ' +
+    (SFP === 'all' ? fmt(d.unknown_platform) + ' people have no known platform (their guest data was deleted before 2026-10-13), so they show under All only.' : 'Android and iOS leave out the ' + fmt(d.unknown_platform) + ' people with no known platform.');
+}
+document.querySelectorAll('#sfSeg button').forEach(b => b.onclick = () => { document.querySelectorAll('#sfSeg button').forEach(x => x.classList.toggle('on', x===b)); SFP = b.dataset.p; renderSimpleFunnel(); });
+
+let TAB = 'dash';
 document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
   document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x===b));
-  const ac = b.dataset.t === 'ac';
-  document.getElementById('tabDash').style.display = ac ? 'none' : 'block';
-  document.getElementById('tabAc').style.display = ac ? 'block' : 'none';
-  document.getElementById('range').style.visibility = ac ? 'hidden' : 'visible';
-  if (ac) loadAc(); else stopReplay();
+  TAB = b.dataset.t;
+  document.getElementById('tabDash').style.display = TAB === 'dash' ? 'block' : 'none';
+  document.getElementById('tabGrowth').style.display = TAB === 'growth' ? 'block' : 'none';
+  document.getElementById('tabAc').style.display = TAB === 'ac' ? 'block' : 'none';
+  document.getElementById('range').style.visibility = TAB === 'dash' ? 'visible' : 'hidden';
+  if (TAB === 'ac') loadAc(); else stopReplay();
+  if (TAB === 'growth') loadGrowth();
 });
 
 async function boot(){
   try { await loadSummary(); } catch { return; }
   document.getElementById('login').style.display='none'; document.getElementById('dash').style.display='block';
   api('/api/retention').then(r=>{ RET=r; renderRetention(); }).catch(()=>{});
+  loadSimpleFunnel(); loadInsights();
   loadAc();   // the badge on the Anti-cheat tab
   await pollFeed(true);
   clearInterval(FEEDTIMER); FEEDTIMER=setInterval(()=>pollFeed(false), 8000);
