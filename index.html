@@ -1038,8 +1038,8 @@ async function boot(){
   loadSimpleFunnel(); loadInsights();
   loadAc();   // the badge on the Anti-cheat tab
   await pollFeed(true);
-  clearInterval(FEEDTIMER); FEEDTIMER=setInterval(()=>pollFeed(false), 8000);
-  setInterval(loadSummary, 120000);
+  // no auto refresh (Will 2026-10-15): every reload ran about 25 s of heavy database queries, and two open tabs were the
+  // biggest load on the database. Reload the page for fresh numbers.
 }
 document.getElementById('f').onsubmit = async (e) => {
   e.preventDefault();
