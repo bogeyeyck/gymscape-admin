@@ -194,6 +194,13 @@
   </div>
 
   <div id="tabDash">
+  <!-- signups by hour (Will 2026-10-16, the Telegram surge): new people each hour, from /api/simple_funnel -->
+  <h2>Signups by hour <small id="shLabel"></small></h2>
+  <div class="slab">
+    <div style="position:relative;height:220px"><canvas id="shChart"></canvas></div>
+    <p class="muted" id="shNote" style="margin-top:8px">New people each hour in your time zone, the last 72 hours. A guest who later signs in counts once. Gold: picked a name; grey: no name yet.</p>
+  </div>
+
   <h2>First open to paid <span class="seg" id="sfSeg" style="margin-left:6px"><button data-p="all" class="on">All</button><button data-p="android">Android</button><button data-p="ios">iOS</button></span> <small id="sfLabel"></small></h2>
   <div class="slab">
     <div class="sf" id="sf"></div>
@@ -663,7 +670,7 @@ function memberSplit(){
   el.textContent=paying+' paying, '+trials+' on trial, '+cancelled+' cancelled';
 }
 async function loadSummary(){
-  const d = await api('/api/summary?days='+DAYS); if (d.error) return;
+  const d = await api('/api/summary?days='+DAYS); if (d.error) { document.getElementById('cards').innerHTML = '<p class="bad">The summary did not load (' + esc(String(d.error)) + '). Reload the page to try again.</p>'; return; }
   loadFunnel().catch(()=>{}); loadRc().catch(()=>{});
   api('/api/insights?days='+(DAYS===365?36500:DAYS)).then(renderAnswers).catch(()=>{});
   loadQuests().catch(()=>{});
@@ -999,7 +1006,22 @@ document.getElementById('insRun').onclick = async () => {
 // ---------- first open to paid (Will 2026-10-13: "a clear funnel ... all the way to conversion to paid"; then "don't do
 // topline downloads since you don't know ... do the most base layer possible": the first step is opening the app) ----------
 let SF = null, SFP = 'all', SFEDIT = false;
-async function loadSimpleFunnel(){ try { const d = await api('/api/simple_funnel'); if (d && !d.error) { SF = d; renderSimpleFunnel(); } else document.getElementById('sfLabel').textContent = 'error: ' + (d && d.error); } catch {} }
+async function loadSimpleFunnel(){ try { const d = await api('/api/simple_funnel'); if (d && !d.error) { SF = d; renderSimpleFunnel(); renderSignupsHourly(d.signups_hourly); } else document.getElementById('sfLabel').textContent = 'error: ' + (d && d.error); } catch {} }
+let SHCHART=null;
+function renderSignupsHourly(rows){
+  if (!Array.isArray(rows) || !rows.length) return;
+  const lab = r => { const d=new Date(r.h); return d.toLocaleDateString([], {weekday:'short'})+' '+d.toLocaleTimeString([], {hour:'numeric'}); };
+  if (SHCHART) SHCHART.destroy();
+  SHCHART = new Chart(document.getElementById('shChart'), { type:'bar',
+    data:{ labels:rows.map(lab), datasets:[
+      { label:'Named', data:rows.map(r=>r.named), backgroundColor:'#ffc44dcc', stack:'s' },
+      { label:'No name yet', data:rows.map(r=>r.n-r.named), backgroundColor:'#969cac99', stack:'s' } ] },
+    options:{ maintainAspectRatio:false, animation:false, plugins:{ legend:{ labels:{ color:'#969cac' } } },
+      scales:{ x:{ stacked:true, ticks:{ color:'#969cac', maxRotation:0, autoSkip:true, maxTicksLimit:12 }, grid:{ display:false } },
+               y:{ stacked:true, beginAtZero:true, ticks:{ color:'#969cac', precision:0 }, grid:{ color:'#ffffff14' } } } } });
+  const last=rows[rows.length-1], peak=rows.reduce((m,r)=>r.n>m.n?r:m, rows[0]);
+  document.getElementById('shLabel').textContent = 'this hour so far: '+last.n.toLocaleString()+' · peak: '+peak.n.toLocaleString()+' ('+lab(peak)+')';
+}
 function renderSimpleFunnel(){
   const d = SF; if (!d) return;
   const c = (d.columns || {})[SFP] || {};
@@ -1032,8 +1054,10 @@ document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
 });
 
 async function boot(){
-  try { await loadSummary(); } catch { return; }
+  // the dashboard opens even when the summary fails (Will 2026-10-16: during the Telegram surge the summary query timed
+  // out and the whole page stayed on the sign-in box); a bad token still signs out through api()
   document.getElementById('login').style.display='none'; document.getElementById('dash').style.display='block';
+  try { await loadSummary(); } catch (e) { if (String(e).includes('unauthorized')) return; document.getElementById('cards').innerHTML = '<p class="bad">The summary did not load (' + esc(String(e)) + '). Reload the page to try again.</p>'; }
   api('/api/retention').then(r=>{ RET=r; renderRetention(); }).catch(()=>{});
   loadSimpleFunnel(); loadInsights();
   loadAc();   // the badge on the Anti-cheat tab
