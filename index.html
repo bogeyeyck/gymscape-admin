@@ -112,6 +112,10 @@
   .tag.watching { color:var(--orange); border-color:rgba(255,166,77,.5); }
   .tag.confirmed { color:#241c0e; background:var(--danger); border-color:var(--danger); }
   .tag.cleared { color:var(--green); border-color:rgba(87,208,90,.5); }
+  .tag.certain { color:#241c0e; background:var(--orange); border-color:var(--orange); }
+  .tag.paying { color:var(--green); border-color:rgba(87,208,90,.5); }
+  .tag.ending { color:var(--orange); border-color:rgba(255,166,77,.5); }
+  table.mret td, table.mret th { text-align:right; } table.mret td:first-child, table.mret th:first-child { text-align:left; }
   .why { white-space:normal; min-width:320px; max-width:560px; line-height:1.35; }
   .acbtns { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0; }
   .replay { display:grid; grid-template-columns:minmax(260px,420px) 1fr; gap:14px; align-items:start; }
@@ -269,6 +273,10 @@
   <div class="cards" id="retQuick"></div>
   <div class="slab" style="margin-top:10px;overflow-x:auto"><table class="ret" id="retGrid"><thead></thead><tbody></tbody></table></div>
 
+  <!-- Will 2026-10-17: trial to member conversion, then member retention by month (migration 0111) -->
+  <h2>Trials and members <small id="mrLabel"></small></h2>
+  <div id="mr"></div>
+
   <div class="grid2" style="margin-top:22px">
     <div><h2 style="margin-top:0">Exercises <small id="rangeLabel2"></small></h2><div class="slab"><canvas id="cEx" style="max-height:260px"></canvas></div></div>
     <div><h2 style="margin-top:0">Clans</h2><div class="slab"><table id="clans"><tbody></tbody></table></div></div>
@@ -335,15 +343,19 @@
       <b>nonstop</b>, 400 or more reps with no pause over 10 seconds;
       <b>steady</b>, a session of 150 or more reps whose pace barely changes (the middle 80% of rep times within 22% of the typical rep);
       <b>exact</b>, 100 or more reps whose exact rep-to-rep times vary by less than 6% (new app builds send every rep's time).
+      <br><span class="tag certain">certain</span> rules, from each rep's own time (2026-10-17): <b>machine</b>, 100 or more reps in a row (no pause over 10 seconds) whose rep-to-rep times vary by under 2.5% (jumping jacks and high knees, rhythmic by nature: 200 or more, under 2%);
+      <b>push-up run</b>, 500 or more push-ups in a row; <b>endless</b>, an hour or more of one exercise in a row. Rows a phone sent twice count once, and the plank (one tick a second) is never timing evidence.
+      <b>Member</b> says who pays: paying, trial, ending (cancelled, access not run out), lapsed or none.
       While an account is flagged, watched or confirmed, a share of its camera sessions records one minute of body-position points (no video) for replay here. The player sees nothing.</p>
     <div class="filters" style="margin-bottom:10px">
       <button class="fbtn" id="acScan">Run the scan now</button>
       <span class="muted" id="acScanOut"></span>
+      <span class="seg" id="acSeg"><button data-f="all" class="on">All</button><button data-f="certain">Certain</button><button data-f="members">Members</button><button data-f="free">Not members</button></span>
       <span style="flex:1"></span>
       <input id="acFlagName" placeholder="Flag a player by name" style="width:220px" />
       <button class="fbtn" id="acFlagBtn">Flag</button>
     </div>
-    <div class="slab" style="overflow-x:auto"><table id="acTable"><thead><tr><th>Player</th><th>Status</th><th>Why</th><th>Newest evidence</th><th>Recordings</th><th>Hiscores</th><th></th></tr></thead><tbody></tbody></table></div>
+    <div class="slab" style="overflow-x:auto"><table id="acTable"><thead><tr><th>Player</th><th>Member</th><th>Status</th><th>Why</th><th>Newest evidence</th><th>Recordings</th><th>Hiscores</th><th></th></tr></thead><tbody></tbody></table></div>
     <div id="acDetail" style="margin-top:18px"></div>
   </div>
 </div>
@@ -663,6 +675,25 @@ function renderRetention(){
 }
 document.querySelectorAll('#retSeg button').forEach(b=>b.onclick=()=>{ RETSEG=b.dataset.s; document.querySelectorAll('#retSeg button').forEach(x=>x.classList.toggle('on',x===b)); renderRetention(); });
 
+// ---------- trials and members (Will 2026-10-17, migration 0111) ----------
+function monthName(m){ const [y,mo]=String(m).split('-').map(Number); return new Date(Date.UTC(y,mo-1,1)).toLocaleString('en-US',{month:'short',year:'numeric',timeZone:'UTC'}); }
+function renderMemberRetention(r){
+  if (!r || r.error) { document.getElementById('mr').innerHTML = '<span class="bad">Did not load.</span>'; return; }
+  document.getElementById('mrLabel').textContent = 'from RevenueCat since '+tShort(r.since)+', store test purchases left out';
+  const tr = (r.trials||[]).map(t => '<tr><td>'+monthName(t.month)+'</td><td>'+fmt(t.started)+'</td><td>'+fmt(t.converted)+'</td><td>'+fmt(t.ended_without_paying)+'</td><td>'+fmt(t.in_trial + t.cancelled_still_in_trial)+(t.cancelled_still_in_trial?' <span class="muted">('+fmt(t.cancelled_still_in_trial)+' cancelled)</span>':'')+'</td><td><b>'+(t.conversion_pct==null?'–':t.conversion_pct+'%')+'</b></td></tr>').join('');
+  const maxK = Math.max(0, ...(r.members||[]).map(m => (m.retention||[]).length));
+  const mr = (r.members||[]).map(m => { const by={}; (m.retention||[]).forEach(x=>by[x.month]=x);
+    return '<tr><td>'+monthName(m.month)+'</td><td>'+fmt(m.started)+'</td><td>'+fmt(m.monthly)+' / '+fmt(m.yearly)+'</td><td>'+fmt(m.paying_now)+'</td>'+
+      Array.from({length:maxK},(_,i)=>{ const x=by[i+1]; return '<td>'+(x?'<b>'+x.pct+'%</b> <span class="muted">'+x.kept+' of '+x.eligible+'</span>':'<span class="muted">·</span>')+'</td>'; }).join('')+'</tr>'; }).join('');
+  const e = r.earlier || {};
+  document.getElementById('mr').innerHTML =
+    '<div style="display:flex;flex-direction:column;gap:12px;max-width:1100px"><div><div class="slab" style="overflow-x:auto"><table class="mret"><thead><tr><th>Trial started</th><th>Trials</th><th>Became members</th><th>Ended without paying</th><th>Still in trial</th><th>Converted</th></tr></thead><tbody>'+(tr||'<tr><td colspan="6" class="muted">No trials yet.</td></tr>')+'</tbody></table>'+
+    '<p class="muted" style="margin:8px 0 0">Converted is out of the trials that have finished (became members, or ended without paying); trials still running are left out of it.</p></div></div>'+
+    '<div><div class="slab" style="overflow-x:auto"><table class="mret"><thead><tr><th>First paid</th><th>Members</th><th>Monthly / yearly</th><th>Paid up now</th>'+Array.from({length:maxK},(_,i)=>'<th>Month '+(i+1)+'</th>').join('')+'</tr></thead><tbody>'+(mr||'<tr><td colspan="4" class="muted">No members yet.</td></tr>')+'</tbody></table>'+
+    '<p class="muted" style="margin:8px 0 0">Month N: still paid up N months after they first paid, out of the members whose month N has come. A yearly plan stays paid for its whole year, so read it beside the monthly / yearly split.'+
+    (e.members?' Members who started before RevenueCat\'s events reach us (2026-08-24) are counted apart: '+fmt(e.members)+', '+fmt(e.paying_now)+' still paying.':'')+'</p></div></div></div>';
+}
+
 // ---------- sections that load when asked (Will 2026-10-17: "fix the admin dash") ----------
 // Every open of this page used to run about 56 seconds of database work, enough to max out the database's two CPU
 // cores for tens of seconds. The cheap parts load at once; these load on a click, and stay loaded (and refresh with the
@@ -675,6 +706,7 @@ const LAZY = {
   users: { what: 'the player list (a large download, about 30 MB)', place: h => { document.querySelector('#users tbody').innerHTML = '<tr><td colspan="20" style="text-align:left">'+h+'</td></tr>'; }, run: loadUsers },
   retention: { what: 'retention', place: h => { document.getElementById('retQuick').innerHTML = h; document.querySelector('#retGrid thead').innerHTML = ''; document.querySelector('#retGrid tbody').innerHTML = ''; }, run: () => api('/api/retention').then(r=>{ RET=r; renderRetention(); }) },
 };
+LAZY.mretention = { what: 'trials and members', place: h => { document.getElementById('mr').innerHTML = h; }, run: () => api('/api/member_retention').then(renderMemberRetention) };
 const LOADED = new Set();
 function lazyButton(k){ if (!LOADED.has(k)) LAZY[k].place('<div style="display:flex;justify-content:flex-start"><button class="fbtn" data-lazy="'+k+'">Load '+LAZY[k].what+'</button></div>'); }
 async function loadLazy(k){
@@ -751,11 +783,15 @@ let RANGE_ONLY = false;   // a range change reloads only the sections that follo
 document.querySelectorAll('#range button').forEach(b=>b.onclick=()=>{ DAYS=Number(b.dataset.d); document.querySelectorAll('#range button').forEach(x=>x.classList.toggle('on',x===b)); RANGE_ONLY = true; loadSummary(); });
 
 // ---------- anti-cheat (Will 2026-09-29, migration 0072) ----------
-let AC=[], ACOPEN=null, REPLAY=null;
+let AC=[], ACOPEN=null, REPLAY=null, ACSEG='all';
+document.querySelectorAll('#acSeg button').forEach(b=>b.onclick=()=>{ ACSEG=b.dataset.f; document.querySelectorAll('#acSeg button').forEach(x=>x.classList.toggle('on',x===b)); renderAc(); });
 const post = (p, body) => fetch(API + p, { method:'POST', headers:{ Authorization:'Bearer '+(tok()||''), 'Content-Type':'application/json' }, body: JSON.stringify(body||{}) }).then(r => { if (r.status === 401) { logout(); throw new Error('unauthorized'); } return r.json(); });
 const tShort = t => t ? new Date(t).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '–';
 const mins = (a,b) => Math.round((new Date(b)-new Date(a))/6000)/10;
 function acReason(r){
+  if (r.rule==='machine') return '<span class="tag certain">certain</span> '+fmt(r.reps)+' '+exName(r.exercise)+' in a row at '+r.sec_per_rep+' s a rep, rep times varied only '+Math.round(r.cv*1000)/10+'% ('+tShort(r.started)+')';
+  if (r.rule==='pushup_run') return '<span class="tag certain">certain</span> '+fmt(r.reps)+' push-ups in a row over '+r.minutes+' min, no pause over 10 s ('+tShort(r.started)+')';
+  if (r.rule==='endless') return '<span class="tag certain">certain</span> '+r.minutes+' minutes of '+exName(r.exercise)+' in a row ('+fmt(r.reps)+' reps), no pause over 10 s ('+tShort(r.started)+')';
   if (r.rule==='daily') return fmt(r.reps)+' reps on '+dateS(r.day+'T12:00:00Z');
   if (r.rule==='daily_exercise') return fmt(r.reps)+' '+exName(r.exercise)+' on '+dateS(r.day+'T12:00:00Z');
   if (r.rule==='nonstop') return fmt(r.reps)+' '+exName(r.exercise)+' in a row over '+r.minutes+' min, no pause over 10 s ('+tShort(r.started)+')';
@@ -767,10 +803,15 @@ function acSummary(rs){
   rs = rs||[]; if (!rs.length) return '<span class="muted">Flagged by hand</span>';
   const by = k => rs.filter(r=>r.rule===k);
   const parts = [];
+  const mc = by('machine'); if (mc.length) parts.push('<b>machine</b> '+mc.length+'x, '+fmt(Math.max(...mc.map(x=>x.reps)))+' in a row varying '+(Math.round(Math.min(...mc.map(x=>x.cv))*1000)/10)+'%');
+  const pr = by('pushup_run'); if (pr.length) parts.push('<b>push-up run</b> '+pr.length+'x, up to '+fmt(Math.max(...pr.map(x=>x.reps)))+' in a row');
+  const en = by('endless'); if (en.length) parts.push('<b>endless</b> '+en.length+'x, up to '+Math.round(Math.max(...en.map(x=>x.minutes)))+' minutes of '+exName(en[0].exercise)+' in a row');
   const d = by('daily'); if (d.length) parts.push('<b>daily</b> '+d.length+' day'+(d.length>1?'s':'')+', up to '+fmt(Math.max(...d.map(x=>x.reps)))+' reps');
   const dx = by('daily_exercise'); if (dx.length) parts.push('<b>jacks or knees</b> '+dx.length+' day'+(dx.length>1?'s':'')+', up to '+fmt(Math.max(...dx.map(x=>x.reps)))+' '+exName(dx.slice().sort((a,b)=>b.reps-a.reps)[0].exercise));
   const n = by('nonstop'); if (n.length) parts.push('<b>nonstop</b> '+n.length+'x, up to '+fmt(Math.max(...n.map(x=>x.reps)))+' in a row');
   const st = by('steady'); if (st.length) parts.push('<b>steady</b> '+st.length+' session'+(st.length>1?'s':'')+', pace varied '+Math.round(Math.min(...st.map(x=>x.spread))*100)+'% at the least');
+  const sd = by('steps_day'); if (sd.length) parts.push('<b>steps</b> '+sd.length+' day'+(sd.length>1?'s':'')+', up to '+fmt(Math.max(...sd.map(x=>x.steps)))+' steps');
+  const sw = by('steps_walk'); if (sw.length) parts.push('<b>walk</b> '+sw.length+' walk'+(sw.length>1?'s':'')+' over the step limit');
   const e = by('exact'); if (e.length) parts.push('<b>exact</b> '+e.length+'x, rep times varied '+(Math.round(Math.min(...e.map(x=>x.cv))*1000)/10)+'% at the least');
   return parts.join('; ');
 }
@@ -779,15 +820,22 @@ async function loadAc(){
   if (!Array.isArray(AC)) { AC=[]; return; }
   const open = AC.filter(a=>a.status==='flagged').length;
   document.getElementById('acCount').textContent = open ? '('+open+')' : '';
-  document.getElementById('acLabel').textContent = AC.length+' account'+(AC.length===1?'':'s')+', '+open+' waiting for review';
-  document.querySelector('#acTable tbody').innerHTML = AC.map(a =>
+  const nCertain = AC.filter(a=>a.certain).length, nMembers = AC.filter(a=>MEMBER_KINDS.includes(a.member)).length;
+  document.getElementById('acLabel').textContent = AC.length+' account'+(AC.length===1?'':'s')+', '+open+' waiting for review, '+nCertain+' certain, '+nMembers+' paying or on a trial';
+  renderAc();
+}
+const MEMBER_KINDS = ['paying', 'trial', 'ending'];
+function renderAc(){
+  const show = AC.filter(a => ACSEG==='certain' ? a.certain : ACSEG==='members' ? MEMBER_KINDS.includes(a.member) : ACSEG==='free' ? !MEMBER_KINDS.includes(a.member) : true);
+  document.querySelector('#acTable tbody').innerHTML = show.map(a =>
     '<tr><td><a onclick="openAc(\''+a.id+'\')" class="goldc">'+esc(a.username||'Guest')+'</a>'+(a.is_internal?' <span class="tag">mine</span>':'')+'</td>'+
-    '<td><span class="tag '+a.status+'">'+a.status+'</span>'+(a.auto?'':' <span class="muted">by hand</span>')+'</td>'+
+    '<td><span class="tag '+esc(a.member||'none')+'">'+esc(a.member||'none')+'</span></td>'+
+    '<td><span class="tag '+a.status+'">'+a.status+'</span>'+(a.certain?' <span class="tag certain">certain</span>':'')+(a.auto?'':' <span class="muted">by hand</span>')+'</td>'+
     '<td class="why">'+acSummary(a.reasons)+'</td><td class="muted">'+(a.evidence_at?ago(a.evidence_at)+' ago':'–')+'</td>'+
     '<td>'+fmt(a.samples)+(a.last_sample?' <span class="muted">'+ago(a.last_sample)+' ago</span>':'')+'</td>'+
     '<td>'+(a.hide_hiscores?'<span class="tag lapsed">hidden</span>':'<span class="muted">shown</span>')+'</td>'+
     '<td><button class="fbtn" onclick="openAc(\''+a.id+'\')">Review</button></td></tr>').join('') ||
-    '<tr><td colspan="7" class="muted">Nobody is flagged.</td></tr>';
+    '<tr><td colspan="8" class="muted">'+(AC.length?'Nobody in this filter.':'Nobody is flagged.')+'</td></tr>';
 }
 async function acAct(id, action, extra){
   const r = await post('/api/anticheat/action', Object.assign({ id, action }, extra||{})).catch(()=>null);
