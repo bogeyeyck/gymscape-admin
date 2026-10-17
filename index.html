@@ -189,6 +189,8 @@
     <div style="display:flex;gap:12px;align-items:center">
       <div class="seg" id="range"><button data-d="7">7d</button><button data-d="30" class="on">30d</button><button data-d="90">90d</button><button data-d="365">All</button></div>
       <button class="fbtn" id="internalBtn" title="Accounts marked as your own phones are left out of every number unless this is on">Show my devices</button>
+      <button class="fbtn" id="freshBtn" title="Numbers are kept on the server for up to 10 minutes so opening the page again costs nothing. This recomputes everything that is open.">Refresh numbers</button>
+      <small class="muted" id="ageLabel"></small>
       <a onclick="logout()" class="wall-text">Sign out</a>
     </div>
   </div>
@@ -230,7 +232,7 @@
       </div>
     </div>
     <div>
-      <h2 style="margin-top:0"><span class="live"></span> Live <small>last 24h, refreshes</small></h2>
+      <h2 style="margin-top:0"><span class="live"></span> Live <small>last 24h</small></h2>
       <div class="slab"><div id="feed"></div></div>
     </div>
   </div>
@@ -352,7 +354,19 @@ Chart.defaults.font.family = 'Spectral, serif'; Chart.defaults.font.size = 12;
 const API = 'https://hjhuirpegaghxvaycgrt.supabase.co/functions/v1/admin';
 const tok = () => localStorage.getItem('gs_admin_token');
 let INTERNAL = false;   // include Will's own devices in the numbers
-const api = (p) => fetch(API + (INTERNAL ? p + (p.includes('?') ? '&' : '?') + 'internal=1' : p), { headers: { Authorization: 'Bearer ' + (tok() || '') } }).then(r => { if (r.status === 401) { logout(); throw new Error('unauthorized'); } return r.json(); });
+// Will 2026-10-17: the server keeps each section's answer for 10 minutes (X-Cached-At says when it was computed);
+// FRESH asks it to compute again (the Refresh numbers button)
+let FRESH = false; const CACHED_AT = {};
+const withQ = (p, q) => p + (p.includes('?') ? '&' : '?') + q;
+const api = (p) => { let u = INTERNAL ? withQ(p, 'internal=1') : p; if (FRESH) u = withQ(u, 'fresh=1');
+  return fetch(API + u, { headers: { Authorization: 'Bearer ' + (tok() || '') } }).then(r => { if (r.status === 401) { logout(); throw new Error('unauthorized'); }
+    const at = r.headers.get('X-Cached-At'); if (at) { CACHED_AT[p.split('?')[0]] = at; showAge(); } return r.json(); }); };
+function showAge(){
+  const ts = Object.values(CACHED_AT).map(t => Date.parse(t)).filter(Number.isFinite); if (!ts.length) return;
+  const old = Math.min(...ts), m = Math.floor((Date.now() - old) / 60000);
+  document.getElementById('ageLabel').textContent = m < 1 ? 'numbers from just now' : 'numbers from up to ' + m + ' min ago';
+}
+setInterval(showAge, 30000);
 function logout(){ localStorage.removeItem('gs_admin_token'); clearInterval(FEEDTIMER); document.getElementById('dash').style.display='none'; document.getElementById('login').style.display='flex'; }
 
 const fmt = n => Number(n||0).toLocaleString();
@@ -466,6 +480,7 @@ const permTag = u => '<span class="tag '+(u.push_permission==='allowed'?'allowed
 const camTag = u => '<span class="tag '+(u.camera_permission==='allowed'?'allowed':u.camera_permission==='denied'?'denied':'')+'">'+(u.camera_permission||'not asked')+'</span>';
 const who = u => u.username ? esc(u.username) : (u.row_kind==='user' ? '<span class="stone">guest</span>' : '<span class="stone">anonymous</span>');
 function applyUsers(){
+  if (!LOADED.has('users')) { lazyButton('users'); return; }   // not asked for yet (2026-10-17)
   const q=(document.getElementById('q').value||'').toLowerCase();
   const now=Date.now();
   let list=USERS.filter(u=>(u.username||'').toLowerCase().includes(q)||String(u.id).toLowerCase().includes(q));
@@ -544,7 +559,7 @@ async function markInternal(id, flag){
   const r = await fetch(API + '/api/internal', { method: 'POST', headers: { Authorization: 'Bearer ' + (tok() || ''), 'Content-Type': 'application/json' }, body: JSON.stringify({ id, flag }) }).then(r=>r.json()).catch(()=>null);
   if (!r || r.error) { alert('Could not update: ' + (r && r.error || 'network')); return; }
   document.getElementById('drill').style.display='none';
-  SEEN=new Set(); loadSummary().then(()=>pollFeed(true));
+  SEEN=new Set(); loadSummary();
 }
 
 // ---------- live feed: sentences, not event names ----------
@@ -648,6 +663,31 @@ function renderRetention(){
 }
 document.querySelectorAll('#retSeg button').forEach(b=>b.onclick=()=>{ RETSEG=b.dataset.s; document.querySelectorAll('#retSeg button').forEach(x=>x.classList.toggle('on',x===b)); renderRetention(); });
 
+// ---------- sections that load when asked (Will 2026-10-17: "fix the admin dash") ----------
+// Every open of this page used to run about 56 seconds of database work, enough to max out the database's two CPU
+// cores for tens of seconds. The cheap parts load at once; these load on a click, and stay loaded (and refresh with the
+// range, the device switch and Refresh numbers) until the page is closed.
+const LAZY = {
+  answers: { what: 'the questions', place: h => { document.getElementById('answers').innerHTML = h; }, run: () => api('/api/insights?days='+(DAYS===365?36500:DAYS)).then(renderAnswers) },
+  quests: { what: 'the starting quests', place: h => { document.getElementById('quests').innerHTML = h; }, run: loadQuests },
+  funnel: { what: 'the funnel', place: h => { document.getElementById('funnel').innerHTML = h; }, run: loadFunnel },
+  feed: { what: 'the last 24 hours', place: h => { document.getElementById('feed').innerHTML = h; }, run: () => { SEEN = new Set(); return pollFeed(true); } },
+  users: { what: 'the player list (a large download, about 30 MB)', place: h => { document.querySelector('#users tbody').innerHTML = '<tr><td colspan="20" style="text-align:left">'+h+'</td></tr>'; }, run: loadUsers },
+  retention: { what: 'retention', place: h => { document.getElementById('retQuick').innerHTML = h; document.querySelector('#retGrid thead').innerHTML = ''; document.querySelector('#retGrid tbody').innerHTML = ''; }, run: () => api('/api/retention').then(r=>{ RET=r; renderRetention(); }) },
+};
+const LOADED = new Set();
+function lazyButton(k){ if (!LOADED.has(k)) LAZY[k].place('<div style="display:flex;justify-content:flex-start"><button class="fbtn" data-lazy="'+k+'">Load '+LAZY[k].what+'</button></div>'); }
+async function loadLazy(k){
+  LOADED.add(k);
+  LAZY[k].place('<span class="muted">Loading '+LAZY[k].what+'…</span>');
+  try { await LAZY[k].run(); } catch (e) { if (!String(e).includes('unauthorized')) LAZY[k].place('<span class="bad">Did not load ('+esc(String(e))+').</span>'); }
+}
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-lazy]'); if (b) loadLazy(b.dataset.lazy); });
+/** Sections already opened load again (new range, device switch, Refresh numbers); the rest keep their buttons. */
+function refreshLazy(only){ for (const k of Object.keys(LAZY)) { if (only && !only.includes(k)) continue; if (LOADED.has(k)) LAZY[k].run().catch(()=>{}); else lazyButton(k); } }
+const BY_RANGE = ['answers', 'quests', 'funnel'];   // the sections that follow the 7d / 30d / 90d / All range
+function loadUsers(){ return api('/api/users').then(rows=>{ USERS=(rows||[]).map(u=>({ ...u, level: u.total_level||0 })); applyUsers(); memberSplit(); }); }
+
 // ---------- funnel + summary ----------
 function stage(l,v){ return '<div class="slab2 step"><div class="big">'+fmt(v)+'</div><span class="label">'+l+'</span></div>'; }
 function arrow(a,b){ return '<span class="arrow">'+pct(b,a)+' &rsaquo;</span>'; }
@@ -671,13 +711,12 @@ function memberSplit(){
 }
 async function loadSummary(){
   const d = await api('/api/summary?days='+DAYS); if (d.error) { document.getElementById('cards').innerHTML = '<p class="bad">The summary did not load (' + esc(String(d.error)) + '). Reload the page to try again.</p>'; return; }
-  loadFunnel().catch(()=>{}); loadRc().catch(()=>{});
-  api('/api/insights?days='+(DAYS===365?36500:DAYS)).then(renderAnswers).catch(()=>{});
-  loadQuests().catch(()=>{});
+  loadRc().catch(()=>{});
+  // the questions, starting quests, funnel, live feed, players and retention load on a click (2026-10-17)
+  refreshLazy(RANGE_ONLY ? BY_RANGE : undefined); RANGE_ONLY = false;
   // Will 2026-09-14: level is the rework's total level, straight off skills_xp
   // (migration 0056). It used to be strength level + agility level, which has
   // been 2 for everybody since the cutover.
-  api('/api/users').then(rows=>{ USERS=(rows||[]).map(u=>({ ...u, level: u.total_level||0 })); applyUsers(); memberSplit(); }).catch(()=>{});
   document.getElementById('rangeLabel').textContent = DAYS+' days'; document.getElementById('rangeLabel2').textContent = DAYS+' days';
   const t=d.totals, td=d.today, yd=d.yesterday;
   document.getElementById('cards').innerHTML =
@@ -701,8 +740,15 @@ async function loadSummary(){
   api('/api/campaigns?days='+DAYS).then(c => { document.querySelector('#campaigns tbody').innerHTML = (c.campaigns||[]).map(x=>'<tr><td>/go/'+esc(x.campaign)+'</td><td style="text-align:right"><span class="n">'+fmt(x.clicks)+'</span> clicks</td><td class="muted" style="text-align:right">'+ago(x.last)+' ago</td></tr>').join('') || '<tr><td class="muted">No clicks yet.</td></tr>'; }).catch(()=>{});
   document.querySelector('#clans tbody').innerHTML = (d.clans_list||[]).map(c=>'<tr><td>'+esc(c.name)+'</td><td><span class="n">'+fmt(c.member_count)+'</span> members</td><td style="text-align:right"><span class="n">'+fmt(c.total_reps)+'</span> reps</td></tr>').join('') || '<tr><td class="muted">No clans yet.</td></tr>';
 }
-document.getElementById('internalBtn').onclick=()=>{ INTERNAL=!INTERNAL; document.getElementById('internalBtn').classList.toggle('on',INTERNAL); document.getElementById('internalBtn').textContent=INTERNAL?'Showing my devices':'Show my devices'; SEEN=new Set(); loadSummary().then(()=>pollFeed(true)); loadSimpleFunnel(); if (TAB==='growth') loadGrowth(); };
-document.querySelectorAll('#range button').forEach(b=>b.onclick=()=>{ DAYS=Number(b.dataset.d); document.querySelectorAll('#range button').forEach(x=>x.classList.toggle('on',x===b)); loadSummary(); });
+document.getElementById('internalBtn').onclick=()=>{ INTERNAL=!INTERNAL; document.getElementById('internalBtn').classList.toggle('on',INTERNAL); document.getElementById('internalBtn').textContent=INTERNAL?'Showing my devices':'Show my devices'; SEEN=new Set(); loadSummary(); loadSimpleFunnel(); if (TAB==='growth') loadGrowth(); };
+document.getElementById('freshBtn').onclick = async () => {
+  const b = document.getElementById('freshBtn'); b.disabled = true; b.textContent = 'Refreshing…';
+  FRESH = true;
+  try { await Promise.allSettled([loadSummary(), loadSimpleFunnel(), TAB === 'growth' ? loadGrowth() : null]); } finally { FRESH = false; }
+  b.disabled = false; b.textContent = 'Refresh numbers';
+};
+let RANGE_ONLY = false;   // a range change reloads only the sections that follow the range (not the 30 MB player list)
+document.querySelectorAll('#range button').forEach(b=>b.onclick=()=>{ DAYS=Number(b.dataset.d); document.querySelectorAll('#range button').forEach(x=>x.classList.toggle('on',x===b)); RANGE_ONLY = true; loadSummary(); });
 
 // ---------- anti-cheat (Will 2026-09-29, migration 0072) ----------
 let AC=[], ACOPEN=null, REPLAY=null;
@@ -1057,11 +1103,10 @@ async function boot(){
   // the dashboard opens even when the summary fails (Will 2026-10-16: during the Telegram surge the summary query timed
   // out and the whole page stayed on the sign-in box); a bad token still signs out through api()
   document.getElementById('login').style.display='none'; document.getElementById('dash').style.display='block';
+  Object.keys(LAZY).forEach(lazyButton);
   try { await loadSummary(); } catch (e) { if (String(e).includes('unauthorized')) return; document.getElementById('cards').innerHTML = '<p class="bad">The summary did not load (' + esc(String(e)) + '). Reload the page to try again.</p>'; }
-  api('/api/retention').then(r=>{ RET=r; renderRetention(); }).catch(()=>{});
   loadSimpleFunnel(); loadInsights();
   loadAc();   // the badge on the Anti-cheat tab
-  await pollFeed(true);
   // no auto refresh (Will 2026-10-15): every reload ran about 25 s of heavy database queries, and two open tabs were the
   // biggest load on the database. Reload the page for fresh numbers.
 }
