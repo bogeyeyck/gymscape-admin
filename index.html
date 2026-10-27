@@ -232,6 +232,8 @@
         <div class="slab"><canvas id="cSign"></canvas></div>
         <div class="slab"><canvas id="cActive"></canvas></div>
         <div class="slab"><canvas id="cWork"></canvas></div>
+        <div class="slab"><canvas id="cFight"></canvas></div>
+        <div class="slab"><canvas id="cWalk"></canvas></div>
         <div class="slab"><canvas id="cGp"></canvas></div>
       </div>
     </div>
@@ -323,11 +325,13 @@
     <div class="slab" style="overflow-x:auto"><table id="gBreak"><thead></thead><tbody></tbody></table></div>
     <h2>How these are counted</h2>
     <div class="slab defs" id="gDefs">
-      <p><b>Person.</b> One per person, not per account. Every install starts as a guest account; a guest who signs in becomes a new account with the guest merged into it, and both count as one person from the guest's first day. Your own phones are left out unless "Show my devices" is on.</p>
+      <p><b>Person.</b> One per person, not per account. Every install starts as a guest account; a guest who signs in becomes a new account with the guest merged into it (or, on builds with link-first sign-in, keeps the guest account), and both count as one person from the guest's first day. Your own phones are left out unless "Show my devices" is on.</p>
       <p><b>Started.</b> When the person's first account was made (their install). The date filters and cohorts use the New York calendar day.</p>
       <p><b>Active.</b> Any app event except a push arriving in the background, any rep, or any coin change.</p>
       <p><b>Back on day N.</b> Active between N and N+1 days (24-hour periods) after starting. Only counted once that period is over, so today's starters never pull the numbers down.</p>
-      <p><b>Activated.</b> At least one counted rep in the first 24 hours.</p>
+      <p><b>Activated.</b> At least one counted rep in the first 3 days.</p>
+      <p><b>Finished the intro.</b> The intro's own end event, or, where an older build (2.0.65.1, 2.0.62) did not send it, a real fight, gather, clan fight or workout afterwards.</p>
+      <p><b>The intro's camera steps.</b> <i>Reached the phone placement</i>: the screen that asks to lean the phone and step back (it does not mean the phone was placed or the camera turned on). <i>Reached the intro fight</i>: the goblin fight screen opened, whether or not a rep was then counted (the fight can be skipped, and "Set up later" on the placement screen skips it altogether). <i>First rep in the intro</i>: a rep counted on the practice screen (older intros) or in the goblin fight. Newer intros have no practice screen, so the first rep comes after the fight screen opens.</p>
       <p><b>Funnel steps.</b> The first time each step happened. A step counts even if an earlier one was skipped (older builds do not have every intro beat, and some players name themselves before finishing the intro), so a later step can be bigger than the one before it.</p>
       <p><b>Source.</b> From each install's first event; the web reads utm_source, phones say "store" until the Android install referrer is added, and "existing" is an app update on a phone that already had GymScape. "unknown" is anyone from before 2026-10-13.</p>
       <p><b>Missing guests before 2026-10-13.</b> Until then a nightly job deleted guest accounts with no reps, steps or coins after 3 days, with their events. That removed the guest half of most people who signed in during the intro (1,126 people: they still count, but their first minutes and platform are gone, which is most of the "unknown" platform) and about 400 installs who never signed in (PostHog saw about 3,600 devices; there are 3,228 people here). Starts and rates before that date leave those 400 out and look a few points better than they were. From 2026-10-13 nothing is deleted.</p>
@@ -344,6 +348,7 @@
       <b>steady</b>, a session of 150 or more reps whose pace barely changes (the middle 80% of rep times within 22% of the typical rep);
       <b>exact</b>, 100 or more reps whose exact rep-to-rep times vary by less than 6% (new app builds send every rep's time).
       <br><span class="tag certain">certain</span> rules, from each rep's own time (2026-10-17): <b>machine</b>, 100 or more reps in a row (no pause over 10 seconds) whose rep-to-rep times vary by under 2.5% (jumping jacks and high knees, rhythmic by nature: 200 or more, under 2%);
+      <b>steady machine</b> (2026-10-23), 200 or more reps in a row where 80% or more of the rep-to-rep times sit within 5% of the run's usual pace, so a few pauses cannot hide a device (not jumping jacks or high knees);
       <b>push-up run</b>, 500 or more push-ups in a row; <b>endless</b>, an hour or more of one exercise in a row. Rows a phone sent twice count once, and the plank (one tick a second) is never timing evidence.
       <b>Member</b> says who pays: paying, trial, ending (cancelled, access not run out), lapsed or none.
       While an account is flagged, watched or confirmed, a share of its camera sessions records one minute of body-position points (no video) for replay here. The player sees nothing.</p>
@@ -732,7 +737,10 @@ async function loadRc(){
   const r = await api('/api/rc'); if (!r || r.error) return;
   document.getElementById('rcLabel').textContent = r.total ? fmt(r.total)+' webhook events, last '+ago(r.last_at)+' ago' : '';
   const warn = !r.total ? '<p class="warn">No webhook events yet.</p>' : (r.ignored_products||[]).length ? '<p class="warn">Ignored product ids: '+r.ignored_products.join(', ')+'</p>' : '';
-  document.getElementById('rc').innerHTML = warn + '<table><tbody>'+(r.recent||[]).slice(0,8).map(e=>'<tr><td>'+nice(e.type).toLowerCase()+'</td><td class="muted">'+String(e.product||'').split(':')[0].replace('gymscape_','')+'</td><td>'+({APP_STORE:'App Store',PLAY_STORE:'Play',RC_BILLING:'Web'}[e.store]||e.store||'')+'</td><td class="muted" style="text-align:right">'+ago(e.at)+' ago</td></tr>').join('')+'</tbody></table>';
+  // members left on a guest account after signing in (0140, Will 2026-10-21): they need to tap Restore
+  const st = r.stranded||[];
+  const stranded = st.length ? '<p class="warn">'+st.length+(st.length===1?' member is':' members are')+' still on their guest account after signing in, so the app shows them as not members. Ask them to tap Restore on the membership screen: '+st.map(x=>esc(x.username||'(no name)')+' ('+(x.period==='TRIAL'?'trial':'paid')+', ends '+String(x.expires_at||'').slice(0,10)+')').join(', ')+'</p>' : '';
+  document.getElementById('rc').innerHTML = warn + stranded + '<table><tbody>'+(r.recent||[]).slice(0,8).map(e=>'<tr><td>'+nice(e.type).toLowerCase()+'</td><td class="muted">'+String(e.product||'').split(':')[0].replace('gymscape_','')+'</td><td>'+({APP_STORE:'App Store',PLAY_STORE:'Play',RC_BILLING:'Web'}[e.store]||e.store||'')+'</td><td class="muted" style="text-align:right">'+ago(e.at)+' ago</td></tr>').join('')+'</tbody></table>';
 }
 // Members card detail (Will 2026-09-27): the headline counts everyone with access, so split out trials and cancellations
 function memberSplit(){
@@ -765,7 +773,7 @@ async function loadSummary(){
     card('Claimed', fmt(td.signups)+delta(td.signups, yd.signups))+card('New guests', fmt(td.guests ?? 0)+delta(td.guests ?? 0, yd.guests ?? 0))+card('Active', fmt(td.active)+delta(td.active, yd.active))+card('Workouts', fmt(td.workouts)+delta(td.workouts, yd.workouts))+
     card('Reps', fmt(td.reps)+delta(td.reps, yd.reps))+card('Gold earned', fmt(td.gp)+delta(td.gp, yd.gp))+card('Unlocks', fmt(td.unlocks)+delta(td.unlocks, yd.unlocks))+card('Steps', fmt(td.steps)+delta(td.steps, yd.steps));
   CHARTS.forEach(c=>c.destroy()); CHARTS=[];
-  chart('cSign','Claimed accounts',d.series,'signups','#ffc44d','bar'); chart('cActive','Active players',d.series,'active','#57d05a'); chart('cWork','Workouts',d.series,'workouts','#ffd84d'); chart('cGp','Gold earned',d.series,'gp','#ffa64d');
+  chart('cSign','Claimed accounts',d.series,'signups','#ffc44d','bar'); chart('cActive','Active players',d.series,'active','#57d05a'); chart('cWork','Workouts (Training sessions)',d.series,'workouts','#ffd84d'); chart('cFight','Fight sessions',d.series,'fights','#ff7a5c'); chart('cWalk','Walks (gathering trips claimed)',d.series,'walks','#7cc4ff'); chart('cGp','Gold earned',d.series,'gp','#ffa64d');
   const ex=d.exercises||[];
   CHARTS.push(new Chart(document.getElementById('cEx'),{type:'bar',data:{labels:ex.map(e=>exName(e.exercise)),datasets:[{label:'Reps',data:ex.map(e=>e.reps),backgroundColor:'#ffc44daa'},{label:'Players',data:ex.map(e=>e.users),backgroundColor:'#969cacaa'}]},
     options:{indexAxis:'y',plugins:{legend:{labels:{color:TICK,boxWidth:12}}},scales:{x:{ticks:{color:TICK,precision:0},grid:{color:GRID}},y:{ticks:{color:'#eceef4'},grid:{display:false}}}}}));
@@ -790,6 +798,7 @@ const tShort = t => t ? new Date(t).toLocaleString(undefined,{month:'short',day:
 const mins = (a,b) => Math.round((new Date(b)-new Date(a))/6000)/10;
 function acReason(r){
   if (r.rule==='machine') return '<span class="tag certain">certain</span> '+fmt(r.reps)+' '+exName(r.exercise)+' in a row at '+r.sec_per_rep+' s a rep, rep times varied only '+Math.round(r.cv*1000)/10+'% ('+tShort(r.started)+')';
+  if (r.rule==='machine_steady') return '<span class="tag certain">certain</span> '+fmt(r.reps)+' '+exName(r.exercise)+' in a row at '+r.sec_per_rep+' s a rep, '+Math.round(r.within5*100)+'% of reps within 5% of that pace ('+tShort(r.started)+')';
   if (r.rule==='pushup_run') return '<span class="tag certain">certain</span> '+fmt(r.reps)+' push-ups in a row over '+r.minutes+' min, no pause over 10 s ('+tShort(r.started)+')';
   if (r.rule==='endless') return '<span class="tag certain">certain</span> '+r.minutes+' minutes of '+exName(r.exercise)+' in a row ('+fmt(r.reps)+' reps), no pause over 10 s ('+tShort(r.started)+')';
   if (r.rule==='daily') return fmt(r.reps)+' reps on '+dateS(r.day+'T12:00:00Z');
@@ -804,6 +813,7 @@ function acSummary(rs){
   const by = k => rs.filter(r=>r.rule===k);
   const parts = [];
   const mc = by('machine'); if (mc.length) parts.push('<b>machine</b> '+mc.length+'x, '+fmt(Math.max(...mc.map(x=>x.reps)))+' in a row varying '+(Math.round(Math.min(...mc.map(x=>x.cv))*1000)/10)+'%');
+  const ms = by('machine_steady'); if (ms.length) parts.push('<b>steady machine</b> '+ms.length+'x, '+fmt(Math.max(...ms.map(x=>x.reps)))+' in a row, up to '+Math.round(Math.max(...ms.map(x=>x.within5))*100)+'% within 5% of the pace');
   const pr = by('pushup_run'); if (pr.length) parts.push('<b>push-up run</b> '+pr.length+'x, up to '+fmt(Math.max(...pr.map(x=>x.reps)))+' in a row');
   const en = by('endless'); if (en.length) parts.push('<b>endless</b> '+en.length+'x, up to '+Math.round(Math.max(...en.map(x=>x.minutes)))+' minutes of '+exName(en[0].exercise)+' in a row');
   const d = by('daily'); if (d.length) parts.push('<b>daily</b> '+d.length+' day'+(d.length>1?'s':'')+', up to '+fmt(Math.max(...d.map(x=>x.reps)))+' reps');
@@ -1027,7 +1037,7 @@ function renderGrowth(){
   const kc = (label, a, b, sub) => card(label, rate(a, b), fmt(a)+' of '+fmt(b)+(sub?' · '+sub:''));
   document.getElementById('gKpis').innerHTML =
     card('People started', fmt(k.people)) +
-    kc('Activated', k.activated, k.people, 'a rep in 24 h') +
+    kc('Activated', k.activated, k.people, 'a rep in 3 days') +
     kc('Finished the intro', k.onboarded, k.people) +
     kc('Back on day 1', k.d1, k.d1_base) +
     kc('Back on day 7', k.d7, k.d7_base) +
