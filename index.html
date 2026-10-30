@@ -171,6 +171,35 @@
   .defs { font-size:12.5px; color:var(--stone); line-height:1.5; }
   .defs b { color:var(--parch); font-weight:600; }
   @media (max-width:700px) { .fun .row { grid-template-columns:120px 1fr 52px 52px; } .fun .row > :nth-child(5) { display:none; } }
+  /* ---- Labels tab (Will 2026-10-30): hand-check reps on pose recordings ---- */
+  .lb { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:14px; align-items:start; }
+  @media (max-width:960px) { .lb { grid-template-columns:1fr; } }
+  .lb canvas { max-height:none; }
+  #lbCanvas { height:min(56vh,520px); width:auto; max-width:100%; display:block; margin:0 auto; background:rgba(10,11,14,.6); border-radius:6px; }
+  #lbTl { width:100%; height:64px; display:block; margin-top:8px; background:rgba(10,11,14,.6); border-radius:6px; cursor:pointer; touch-action:none; }
+  .lbbar { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:8px; }
+  .lbbar .fbtn { min-height:34px; }
+  .lbbar .fbtn.verdict.on { color:#241c0e; background:var(--gold); border-color:var(--gold); }
+  .saveState { display:inline-flex; align-items:center; gap:8px; font:600 13px var(--f-head); letter-spacing:.03em; padding:7px 14px; border-radius:20px; border:1px solid var(--edge); background:rgba(10,11,14,.6); text-shadow:none; }
+  .saveState .dot { width:10px; height:10px; border-radius:50%; background:var(--stone); flex:none; }
+  .saveState.saved { color:var(--green); border-color:rgba(87,208,90,.6); } .saveState.saved .dot { background:var(--green); }
+  .saveState.pending { color:var(--gold); border-color:rgba(255,196,77,.6); } .saveState.pending .dot { background:var(--gold); }
+  .saveState.error { color:#fff; background:#7a2a24; border-color:var(--danger); } .saveState.error .dot { background:#fff; }
+  .lbFacts { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin:8px 0; }
+  .lbFacts .slab2 { padding:6px 8px; }
+  .lbCounts { display:flex; gap:10px; align-items:baseline; margin:6px 0 2px; }
+  #lbNote { width:100%; font:inherit; color:var(--parch); background:rgba(10,11,14,.6); border:1px solid var(--edge); border-radius:10px; padding:8px; }
+  .lbNext { width:100%; padding:10px; margin-top:10px; font-size:16px; }
+  .lbNext[disabled] { filter:grayscale(.6) brightness(.8); cursor:wait; }
+  .lbList { max-height:340px; overflow:auto; }
+  .lbList tr { cursor:pointer; } .lbList tr.on td { background:rgba(255,196,77,.12); }
+  .lbList td { white-space:nowrap; } .lbList td.r { white-space:normal; min-width:220px; color:var(--stone); font-size:13px; }
+  .tag.done { color:var(--green); border-color:rgba(87,208,90,.5); } .tag.draft { color:var(--gold); border-color:rgba(255,196,77,.5); }
+  kbd { font:600 11px var(--f-head); color:var(--parch); background:rgba(255,255,255,.08); border:1px solid var(--edge); border-bottom-width:2px; border-radius:4px; padding:0 5px; }
+  .lbHelp { font-size:13px; color:var(--stone); line-height:1.6; }
+  .lbRestored { margin:8px 0; padding:8px 10px; border-radius:8px; border:1px solid rgba(255,196,77,.5); color:var(--gold); background:rgba(10,11,14,.6); }
+  .lbFacts .label { display:block; }
+  .lbNotice { margin:0 0 10px; padding:8px 12px; border-radius:8px; border:1px solid rgba(87,208,90,.5); color:var(--green); background:rgba(10,11,14,.6); }
 </style></head>
 <body>
 <div id="login">
@@ -188,9 +217,9 @@
   <div class="topbar">
     <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;min-width:0">
       <h1 class="font-display">GymScape</h1>
-      <div class="seg" id="tabs"><button data-t="dash" class="on">Dashboard</button><button data-t="growth">Funnel &amp; retention</button><button data-t="checks">Checks <span id="insCount"></span></button><button data-t="ac">Anti-cheat <span id="acCount"></span></button></div>
+      <div class="seg" id="tabs"><button data-t="dash" class="on">Dashboard</button><button data-t="growth">Funnel &amp; retention</button><button data-t="checks">Checks <span id="insCount"></span></button><button data-t="ac">Anti-cheat <span id="acCount"></span></button><button data-t="labels">Labels <span id="lbCount"></span></button></div>
     </div>
-    <div style="display:flex;gap:12px;align-items:center">
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
       <div class="seg" id="range"><button data-d="7">7d</button><button data-d="30" class="on">30d</button><button data-d="90">90d</button><button data-d="365">All</button></div>
       <button class="fbtn" id="internalBtn" title="Accounts marked as your own phones are left out of every number unless this is on">Show my devices</button>
       <button class="fbtn" id="freshBtn" title="Numbers are kept on the server for up to 10 minutes so opening the page again costs nothing. This recomputes everything that is open.">Refresh numbers</button>
@@ -362,6 +391,18 @@
     </div>
     <div class="slab" style="overflow-x:auto"><table id="acTable"><thead><tr><th>Player</th><th>Member</th><th>Status</th><th>Why</th><th>Newest evidence</th><th>Recordings</th><th>Hiscores</th><th></th></tr></thead><tbody></tbody></table></div>
     <div id="acDetail" style="margin-top:18px"></div>
+  </div>
+  <div id="tabLabels" style="display:none">
+    <h2 style="margin-top:4px">Label reps <small>hand-check the rep counter on real recordings, to train a better one</small></h2>
+    <div class="filters" style="margin-bottom:10px">
+      <span class="seg" id="lbEx"></span>
+      <span class="muted" id="lbProgress"></span>
+      <span style="flex:1"></span>
+      <span class="saveState" id="lbSave" title="Every change saves to the server by itself within about a second"><span class="dot"></span><span id="lbSaveText">Nothing to save yet</span></span>
+      <button class="fbtn" id="lbRetry" style="display:none">Save now</button>
+    </div>
+    <div class="lbNotice" id="lbFlushed" style="display:none"></div>
+    <div id="lbBody"><div class="slab2 muted">Loading the queue</div></div>
   </div>
 </div>
 <div id="drill" onclick="if(event.target===this)this.style.display='none'"><div class="inner slab" id="drillBody"></div></div>
@@ -1151,10 +1192,290 @@ document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
   document.getElementById('tabGrowth').style.display = TAB === 'growth' ? 'block' : 'none';
   document.getElementById('tabAc').style.display = TAB === 'ac' ? 'block' : 'none';
   document.getElementById('tabChecks').style.display = TAB === 'checks' ? 'block' : 'none';
+  document.getElementById('tabLabels').style.display = TAB === 'labels' ? 'block' : 'none';
+  if (TAB === 'labels') lbOpen(); else { lbStop(); lbSave(); }
   if (TAB === 'checks') loadInsights();
   document.getElementById('range').style.visibility = TAB === 'dash' ? 'visible' : 'hidden';
   if (TAB === 'ac') loadAc(); else stopReplay();
   if (TAB === 'growth') loadGrowth();
+});
+
+// ---------- Labels tab (Will 2026-10-30, migration 0192): hand-check the rep counter on pose recordings ----------
+// Saving (Will: "make sure ... it is easy and clear when the work is saved so that my work is never lost"):
+// every change is kept in this browser at once and sent to the server about a second later; the pill at the top
+// says Saved (with the time), Saving, or Not saved (red, retries by itself every few seconds, Save now button).
+// Moving to another recording, Done, switching tabs and closing the page all wait for the save or warn first.
+// Each save carries an edit stamp, so a late, older save can never replace newer work (admin_label_save).
+const LB = { ex: null, items: [], exercises: [], cur: null, file: null, i: 0, playing: false, speed: 1, raf: 0, t0: 0, base: 0,
+  timer: 0, inflight: null, lastSavedAt: null, error: null, retryTimer: 0, opened: 0 };
+const LB_EX = ['pushUps', 'squats', 'sitUps', 'lunges', 'jumpingJacks', 'legLifts'];
+const LB_VERDICTS = [['real', 'Real person'], ['video', 'Video or screen'], ['not_exercising', 'Not exercising'], ['bad_camera', 'Bad camera view']];
+const lbKey = id => 'gs_label_draft_' + id;
+const lbDirty = () => !!(LB.cur && LB.cur.rev > LB.cur.savedRev);
+function lbStore(){ try { localStorage.setItem(lbKey(LB.cur.id), JSON.stringify(LB.cur)); } catch {} }
+function lbState(kind, text){
+  const el = document.getElementById('lbSave'); if (!el) return;
+  el.className = 'saveState ' + kind; document.getElementById('lbSaveText').textContent = text;
+  document.getElementById('lbRetry').style.display = kind === 'error' ? '' : 'none';
+}
+function lbShowState(){
+  if (!LB.cur) return lbState('', 'Nothing to save yet');
+  if (LB.error) return lbState('error', 'Not saved yet: the server did not answer. Your work is kept in this browser and is sent again every few seconds');
+  if (LB.inflight || lbDirty()) return lbState('pending', 'Saving');
+  if (LB.lastSavedAt) return lbState('saved', 'Saved to the server at ' + LB.lastSavedAt.toLocaleTimeString());
+  if (LB.prevSavedAt) return lbState('saved', 'Last one saved at ' + LB.prevSavedAt.toLocaleTimeString() + '. No changes to this one yet');
+  return lbState('saved', LB.cur.savedRev ? 'Saved earlier' : 'No changes yet');
+}
+function lbChanged(){
+  if (!LB.cur) return;
+  LB.cur.rev = Date.now(); lbStore(); lbShowState(); lbRenderSide(); lbDrawTl();
+  clearTimeout(LB.timer); LB.timer = setTimeout(() => lbSave(), 900);
+}
+async function lbSave(){
+  clearTimeout(LB.timer);
+  if (!LB.cur) return true;
+  if (LB.inflight) { await LB.inflight; if (!lbDirty()) return !LB.error; }
+  if (!lbDirty()) return true;
+  const c = LB.cur, sent = c.rev;
+  const body = { id: c.id, reps: c.reps, verdict: c.verdict || '', note: c.note || '', status: c.done ? 'done' : 'draft', rev: sent,
+    counter_reps: c.counterReps, seconds_spent: Math.round((c.secondsBefore || 0) + (Date.now() - LB.opened) / 1000), reopen: c.reopen ? 'true' : '' };
+  lbShowState();
+  LB.inflight = (async () => {
+    try {
+      const r = await post('/api/labels/save', body);
+      if (!r || r.error || !r.saved) throw new Error(r && r.error || 'no answer');
+      c.savedRev = Math.max(c.savedRev || 0, Number(r.saved.rev) || sent); c.reopen = false;
+      LB.error = null; LB.lastSavedAt = new Date(); clearTimeout(LB.retryTimer);
+      if (!lbDirtyFor(c)) { try { localStorage.removeItem(lbKey(c.id)); } catch {} }
+      const it = LB.items.find(x => x.id === c.id); if (it) { it.status = r.saved.status; it.my_reps = (r.saved.reps || []).length; it.verdict = r.saved.verdict; }
+      return true;
+    } catch (e) {
+      LB.error = String(e && e.message || e).slice(0, 80) || 'no answer';
+      clearTimeout(LB.retryTimer); LB.retryTimer = setTimeout(() => { LB.error = null; lbSave(); }, 5000);
+      return false;
+    } finally { LB.inflight = null; lbShowState(); lbRenderList(); lbRenderExercises(); }
+  })();
+  const ok = await LB.inflight;
+  if (ok && lbDirty()) return lbSave();   // something changed while that save was on its way
+  return ok;
+}
+const lbDirtyFor = c => c.rev > (c.savedRev || 0);
+window.addEventListener('beforeunload', e => { if (lbDirty() || LB.inflight || LB.error) { e.preventDefault(); e.returnValue = ''; } });
+
+// work an earlier visit kept in this browser but never got to the server: send it now, and say so
+async function lbFlushDrafts(){
+  const keys = []; try { for (let k = 0; k < localStorage.length; k++) { const n = localStorage.key(k); if (n && n.startsWith('gs_label_draft_')) keys.push(n); } } catch { return; }
+  for (const n of keys) {
+    let d; try { d = JSON.parse(localStorage.getItem(n) || 'null'); } catch { continue; }
+    if (!d || !d.id || (LB.cur && LB.cur.id === d.id)) continue;
+    if (!(d.rev > (d.savedRev || 0))) { try { localStorage.removeItem(n); } catch {} continue; }
+    const r = await post('/api/labels/save', { id: d.id, reps: d.reps, verdict: d.verdict || '', note: d.note || '', status: d.done ? 'done' : 'draft', rev: d.rev, counter_reps: d.counterReps }).catch(() => null);
+    if (r && r.saved) { try { localStorage.removeItem(n); } catch {} LB.flushed = (LB.flushed || 0) + 1; }
+  }
+  if (LB.flushed) { const b = document.getElementById('lbFlushed'); if (b) { b.style.display = ''; b.textContent = (LB.flushed === 1 ? 'One label' : LB.flushed + ' labels') + ' left unsaved in this browser last time ' + (LB.flushed === 1 ? 'is' : 'are') + ' now saved on the server.'; } LB.flushed = 0; }
+}
+async function lbOpen(){
+  if (!LB.ex) LB.ex = 'pushUps';
+  await lbFlushDrafts();
+  await lbLoadQueue();
+  if (!LB.cur) { const next = LB.items.find(x => x.status !== 'done') || LB.items[0]; if (next) lbLoad(next.id); else lbRenderEmpty(); }
+}
+async function lbLoadQueue(){
+  let d; try { d = await api('/api/labels?ex=' + LB.ex); } catch { return; }
+  if (!d || d.error) { document.getElementById('lbBody').innerHTML = '<div class="slab2 bad">The queue did not load (' + esc(d && d.error || 'network') + ').</div>'; return; }
+  LB.items = d.items || []; LB.exercises = d.exercises || [];
+  lbRenderExercises(); lbRenderList();
+}
+function lbRenderExercises(){
+  const have = new Map(LB.exercises.map(e => [e.exercise_id, e]));
+  document.getElementById('lbEx').innerHTML = LB_EX.filter(e => have.has(e)).map(e => { const x = have.get(e);
+    return '<button data-e="' + e + '" class="' + (e === LB.ex ? 'on' : '') + '">' + esc(exName(e)) + ' ' + fmt(x.done) + '/' + fmt(x.queued) + '</button>'; }).join('');
+  document.querySelectorAll('#lbEx button').forEach(b => b.onclick = async () => { if (!(await lbLeave())) return; lbStop(); LB.ex = b.dataset.e; LB.cur = null; LB.file = null; lbOpen(); });
+  const x = have.get(LB.ex); document.getElementById('lbProgress').textContent = x ? fmt(x.done) + ' done, ' + fmt(x.drafts) + ' started, ' + fmt(x.queued - x.done) + ' to go' : '';
+  const total = LB.exercises.reduce((a, e) => a + (e.queued - e.done), 0); const tc = document.getElementById('lbCount'); if (tc) tc.textContent = total ? fmt(total) : '';
+}
+function lbRenderEmpty(){ document.getElementById('lbBody').innerHTML = '<div class="slab2 muted">Nothing queued for ' + esc(exName(LB.ex)) + ' yet.</div>'; }
+// leave the current recording only once its work is on the server (or after Will says to go anyway)
+async function lbLeave(){
+  if (!LB.cur) return true;
+  const ok = await lbSave();
+  if (ok) return true;
+  return confirm('The last change to this recording has not reached the server yet. It is kept in this browser and will be sent the next time you open it. Leave it anyway?');
+}
+async function lbLoad(id){
+  if (LB.cur && LB.cur.id !== id && !(await lbLeave())) return;
+  lbStop();
+  document.getElementById('lbBody').innerHTML = '<div class="slab2 muted">Loading recording ' + id + '</div>';
+  let d; try { d = await api('/api/labels/recording?id=' + id); } catch { return; }
+  if (!d || d.error || !d.file) { document.getElementById('lbBody').innerHTML = '<div class="slab2 bad">This recording did not load (' + esc(d && d.error || 'network') + '). <a onclick="lbNext()">Next one</a></div>'; return; }
+  LB.prevSavedAt = LB.lastSavedAt || LB.prevSavedAt || null;
+  LB.file = d.file; LB.rec = d.rec || {}; LB.queue = d.queue || {}; LB.error = null; LB.lastSavedAt = null;
+  const game = (d.file.reps || []).slice().sort((a, b) => a - b);
+  const L = d.label;
+  LB.cur = { id, counterReps: game.length, game, reps: L ? (L.reps || []).map(Number) : game.slice(), verdict: L ? L.verdict : null, note: L ? (L.note || '') : '',
+    done: !!(L && L.status === 'done'), rev: L ? Number(L.rev) || 0 : 0, savedRev: L ? Number(L.rev) || 0 : 0, secondsBefore: L ? (L.seconds_spent || 0) : 0, undo: [] };
+  LB.restored = false;
+  try {   // work this browser kept that the server never got (a lost connection, a closed tab)
+    const k = JSON.parse(localStorage.getItem(lbKey(id)) || 'null');
+    if (k && k.rev > LB.cur.savedRev) { Object.assign(LB.cur, { reps: k.reps, verdict: k.verdict, note: k.note, done: k.done, rev: k.rev }); LB.restored = true; }
+    else if (k) localStorage.removeItem(lbKey(id));
+  } catch {}
+  LB.opened = Date.now(); LB.i = 0; LB.speed = 1;
+  lbRender(); lbShowState(); lbRenderList();
+  if (LB.restored) lbSave();
+  LB.playing = true; LB.t0 = performance.now(); LB.base = LB.file.frames[0][0]; lbTick();
+}
+function lbRender(){
+  const c = LB.cur, f = LB.file, q = LB.queue;
+  const ref = f.refusedTally || {}; const refTxt = Object.keys(ref).filter(k => k !== 'refused_total' && ref[k]).map(k => k.replace('refused_', '') + ' ' + ref[k]).join(', ');
+  document.getElementById('lbBody').innerHTML =
+  '<div class="lb"><div>' +
+    '<canvas id="lbCanvas" width="520" height="520"></canvas>' +
+    '<canvas id="lbTl" width="1000" height="64" title="Click to jump there"></canvas>' +
+    '<div class="lbbar">' +
+      '<button class="fbtn" id="lbPlay">Pause</button>' +
+      '<button class="fbtn" id="lbBack" title="Back one frame (left arrow; shift for one second)">&#9664;</button>' +
+      '<button class="fbtn" id="lbFwd" title="Forward one frame (right arrow; shift for one second)">&#9654;</button>' +
+      '<span class="seg" id="lbSpeed"><button data-v="0.5">0.5x</button><button data-v="1" class="on">1x</button><button data-v="2">2x</button></span>' +
+      '<span class="muted" id="lbT"></span>' +
+    '</div>' +
+    '<div class="lbbar">' +
+      '<button class="fbtn" id="lbAdd">Add a rep here <kbd>R</kbd></button>' +
+      '<button class="fbtn" id="lbDel">Remove the nearest rep <kbd>X</kbd></button>' +
+      '<button class="fbtn" id="lbUndo">Undo <kbd>Z</kbd></button>' +
+      '<button class="fbtn" id="lbReset">Start again from the game\'s reps</button>' +
+    '</div>' +
+    '<p class="lbHelp slab2" style="margin-top:8px">Mark each real rep at the moment it finishes (back at the top), the same moment the game counts it. ' +
+    'Green ticks on the strip are the game\'s reps, gold marks are yours, red ticks are reps the game refused. ' +
+    '<kbd>Space</kbd> play or pause, <kbd>&larr;</kbd> <kbd>&rarr;</kbd> one frame (with <kbd>Shift</kbd> one second), <kbd>1</kbd> to <kbd>4</kbd> the verdict, <kbd>Enter</kbd> done and next.</p>' +
+  '</div><div class="slab2" id="lbSide"></div></div>' +
+  '<h2>Queue <small>' + esc(exName(LB.ex)) + ', in the order that helps most</small></h2>' +
+  '<div class="slab lbList"><table><thead><tr><th>#</th><th>Kind</th><th>Game</th><th>Yours</th><th>Saved</th><th>Why it is here</th></tr></thead><tbody id="lbRows"></tbody></table></div>';
+  LB.sideHtml = { refTxt, q };
+  lbRenderSide();
+  const cv = document.getElementById('lbCanvas'); cv.height = Math.round(cv.width * (f.h || 640) / (f.w || 480));
+  document.getElementById('lbPlay').onclick = () => lbToggle();
+  document.getElementById('lbBack').onclick = e => lbStep(e.shiftKey ? -15 : -1);
+  document.getElementById('lbFwd').onclick = e => lbStep(e.shiftKey ? 15 : 1);
+  document.querySelectorAll('#lbSpeed button').forEach(b => b.onclick = () => { LB.speed = Number(b.dataset.v); document.querySelectorAll('#lbSpeed button').forEach(x => x.classList.toggle('on', x === b)); lbResync(); });
+  document.getElementById('lbAdd').onclick = lbAdd; document.getElementById('lbDel').onclick = lbDel; document.getElementById('lbUndo').onclick = lbUndo;
+  document.getElementById('lbReset').onclick = () => { lbPush(); LB.cur.reps = LB.cur.game.slice(); lbChanged(); };
+  const tl = document.getElementById('lbTl');
+  const seek = e => { const r = tl.getBoundingClientRect(); const t = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * lbEnd(); lbSeekT(t); };
+  tl.onpointerdown = e => { seek(e); tl.setPointerCapture(e.pointerId); tl.onpointermove = seek; };
+  tl.onpointerup = () => { tl.onpointermove = null; };
+  lbDrawTl();
+}
+function lbRenderSide(){
+  const c = LB.cur, f = LB.file, q = LB.queue || {}; if (!c || !document.getElementById('lbSide')) return;
+  const refTxt = (LB.sideHtml || {}).refTxt;
+  const pos = LB.items.findIndex(x => x.id === c.id);
+  document.getElementById('lbSide').innerHTML =
+    '<div class="label">' + (pos >= 0 ? 'Recording ' + (pos + 1) + ' of ' + LB.items.length : 'Recording ' + c.id) + ' &middot; ' + esc(q.bucket || '') + '</div>' +
+    '<div class="muted" style="font-size:13px;margin-top:2px">' + esc(q.reason || '') + '</div>' +
+    (LB.restored ? '<div class="lbRestored">Unsaved work from this browser was restored and is being saved.</div>' : '') +
+    '<div class="lbCounts"><div><div class="label">Game counted</div><span class="mid">' + fmt(c.counterReps) + '</span></div>' +
+      '<div><div class="label">Your count</div><span class="mid" style="color:var(--gold)">' + fmt(c.reps.length) + '</span></div></div>' +
+    '<div class="lbFacts">' +
+      '<div class="slab2"><span class="label">Length</span>' + (f.seconds ? Math.round(f.seconds) + ' s' : '–') + '</div>' +
+      '<div class="slab2"><span class="label">Where</span>' + esc(nice(f.where || '')) + '</div>' +
+      '<div class="slab2"><span class="label">Phone</span>' + esc(f.platform || '') + ' ' + esc((f.env || {}).orient || '') + '</div>' +
+      '<div class="slab2"><span class="label">Refused</span>' + (refTxt ? esc(refTxt) : 'none') + '</div>' +
+    '</div>' +
+    '<div class="label" style="margin-top:6px">Verdict</div>' +
+    '<div class="lbbar" style="margin-top:4px">' + LB_VERDICTS.map(([v, t], k) => '<button class="fbtn verdict' + (c.verdict === v ? ' on' : '') + '" data-v="' + v + '">' + t + ' <kbd>' + (k + 1) + '</kbd></button>').join('') + '</div>' +
+    '<p class="lbHelp" style="margin-top:4px">For a video, no exercise or a bad camera view you do not need to fix the reps.</p>' +
+    '<div class="label" style="margin-top:6px">Note (optional)</div>' +
+    '<textarea id="lbNote" rows="2" placeholder="Anything odd: knees down, half reps, two people">' + esc(c.note || '') + '</textarea>' +
+    '<button class="gold lbNext" id="lbDone">' + (c.done ? 'Done. Next' : 'Done, next') + ' <kbd>Enter</kbd></button>' +
+    '<div class="lbbar" style="justify-content:space-between"><button class="fbtn" id="lbPrev">Previous</button><button class="fbtn" id="lbSkip">Skip for now</button></div>' +
+    (c.done ? '<p class="lbHelp">Marked done. Changes still save; it stays done.</p>' : '');
+  document.querySelectorAll('#lbSide .verdict').forEach(b => b.onclick = () => lbVerdict(b.dataset.v));
+  const note = document.getElementById('lbNote'); note.oninput = () => { LB.cur.note = note.value; LB.cur.rev = Date.now(); lbStore(); lbShowState(); clearTimeout(LB.timer); LB.timer = setTimeout(() => lbSave(), 900); };
+  document.getElementById('lbDone').onclick = lbDone;
+  document.getElementById('lbPrev').onclick = () => lbStepItem(-1);
+  document.getElementById('lbSkip').onclick = () => lbNext(true);
+}
+function lbRenderList(){
+  const tb = document.getElementById('lbRows'); if (!tb) return;
+  tb.innerHTML = LB.items.map((x, k) => '<tr data-id="' + x.id + '" class="' + (LB.cur && LB.cur.id === x.id ? 'on' : '') + '"><td>' + (k + 1) + '</td><td>' + esc(x.bucket) + '</td><td>' + fmt(x.reps) + '</td><td>' + (x.my_reps == null ? '–' : fmt(x.my_reps)) + '</td>' +
+    '<td>' + (x.status === 'done' ? '<span class="tag done">done</span>' : x.status === 'draft' ? '<span class="tag draft">started</span>' : '') + (x.verdict && x.verdict !== 'real' ? ' <span class="tag">' + esc(nice(x.verdict)) + '</span>' : '') + '</td><td class="r">' + esc(x.reason || '') + '</td></tr>').join('');
+  tb.querySelectorAll('tr').forEach(r => r.onclick = () => lbLoad(Number(r.dataset.id)));
+}
+function lbPush(){ LB.cur.undo.push(LB.cur.reps.slice()); if (LB.cur.undo.length > 100) LB.cur.undo.shift(); }
+function lbNow(){ return LB.file.frames[LB.i][0]; }
+function lbAdd(){ if (!LB.cur) return; lbPush(); const t = lbNow(); if (!LB.cur.reps.some(r => Math.abs(r - t) < 120)) { LB.cur.reps.push(t); LB.cur.reps.sort((a, b) => a - b); } lbChanged(); }
+function lbDel(){ if (!LB.cur || !LB.cur.reps.length) return; const t = lbNow(); let best = -1, bd = 1500;
+  LB.cur.reps.forEach((r, k) => { const d = Math.abs(r - t); if (d < bd) { bd = d; best = k; } }); if (best < 0) return; lbPush(); LB.cur.reps.splice(best, 1); lbChanged(); }
+function lbUndo(){ if (!LB.cur || !LB.cur.undo.length) return; LB.cur.reps = LB.cur.undo.pop(); lbChanged(); }
+function lbVerdict(v){ if (!LB.cur) return; LB.cur.verdict = LB.cur.verdict === v ? null : v; lbChanged(); }
+async function lbDone(){
+  const b = document.getElementById('lbDone'); if (!LB.cur) return;
+  if (!LB.cur.verdict) { LB.cur.verdict = 'real'; }
+  if (!LB.cur.done) { LB.cur.done = true; LB.cur.rev = Date.now(); lbStore(); }
+  b.disabled = true; b.textContent = 'Saving';
+  const ok = await lbSave();
+  if (!ok) { b.disabled = false; b.textContent = 'Not saved yet. Try again'; return; }
+  lbNext();
+}
+async function lbNext(skip){
+  if (!(await lbLeave())) return;
+  const pos = LB.items.findIndex(x => LB.cur && x.id === LB.cur.id);
+  const after = LB.items.slice(pos + 1).concat(LB.items.slice(0, Math.max(0, pos)));
+  const next = after.find(x => x.status !== 'done');
+  if (next) lbLoad(next.id); else { await lbLoadQueue(); lbStop(); document.getElementById('lbBody').innerHTML = '<div class="slab2 ok">Every ' + esc(exName(LB.ex)) + ' recording in the queue is done. Saved on the server.</div>'; LB.cur = null; lbShowState(); }
+}
+function lbStepItem(d){ const pos = LB.items.findIndex(x => LB.cur && x.id === LB.cur.id); const it = LB.items[pos + d]; if (it) lbLoad(it.id); }
+function lbStop(){ cancelAnimationFrame(LB.raf); LB.raf = 0; }
+function lbEnd(){ const F = LB.file.frames; return F[F.length - 1][0] || 1; }
+function lbResync(){ LB.t0 = performance.now(); LB.base = lbNow(); }
+function lbToggle(){ LB.playing = !LB.playing; const b = document.getElementById('lbPlay'); if (b) b.textContent = LB.playing ? 'Pause' : 'Play'; lbResync(); }
+function lbStep(n){ LB.playing = false; const b = document.getElementById('lbPlay'); if (b) b.textContent = 'Play'; LB.i = Math.max(0, Math.min(LB.file.frames.length - 1, LB.i + n)); lbResync(); lbDraw(); }
+function lbSeekT(t){ const F = LB.file.frames; let k = 0; while (k < F.length - 1 && F[k + 1][0] <= t) k++; LB.i = k; lbResync(); lbDraw(); }
+function lbTick(){
+  if (!LB.file || !LB.cur || !document.getElementById('lbCanvas')) { LB.raf = 0; return; }
+  if (LB.playing) { const F = LB.file.frames, target = LB.base + (performance.now() - LB.t0) * LB.speed;
+    while (LB.i < F.length - 1 && F[LB.i + 1][0] <= target) LB.i++;
+    if (LB.i >= F.length - 1) { LB.playing = false; const b = document.getElementById('lbPlay'); if (b) b.textContent = 'Play'; } }
+  lbDraw(); LB.raf = requestAnimationFrame(lbTick);
+}
+function lbDraw(){
+  const cv = document.getElementById('lbCanvas'); if (!cv || !LB.file || !LB.cur) return; const ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
+  const fr = LB.file.frames[LB.i], t = fr[0];
+  ctx.clearRect(0, 0, W, H);
+  const P = k => ({ x: fr[1 + k * 3] / 1000 * W, y: fr[2 + k * 3] / 1000 * H, s: fr[3 + k * 3] });
+  ctx.lineWidth = 5; ctx.lineCap = 'round';
+  EDGES.forEach(([a, b]) => { const A = P(a), B = P(b); if (A.s < 3 || B.s < 3 || fr[1 + a * 3] < 0 || fr[1 + b * 3] < 0) return; ctx.strokeStyle = 'rgba(255,196,77,' + (0.35 + 0.065 * Math.min(A.s, B.s)) + ')'; ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke(); });
+  for (let k = 0; k < 17; k++) { const A = P(k); if (A.s < 3 || fr[1 + k * 3] < 0) continue; ctx.fillStyle = k < 5 ? '#eceef4' : '#ffd84d'; ctx.beginPath(); ctx.arc(A.x, A.y, k === 0 ? 6 : 4, 0, 7); ctx.fill(); }
+  const mine = LB.cur.reps.filter(r => r <= t).length, game = LB.cur.game.filter(r => r <= t).length;
+  ctx.font = '30px "Jersey 10", monospace'; ctx.fillStyle = '#ffc44d'; ctx.fillText('yours ' + mine, 12, 34); ctx.fillStyle = '#57d05a'; ctx.fillText('game ' + game, 12, 66);
+  const near = LB.cur.reps.find(r => t - r >= 0 && t - r < 300); if (near != null) { ctx.fillStyle = 'rgba(255,196,77,.95)'; ctx.font = 'bold 30px "Jersey 10", monospace'; ctx.fillText('REP', W - 74, 34); }
+  const tl = document.getElementById('lbT'); if (tl) tl.textContent = (t / 1000).toFixed(1) + ' s of ' + (lbEnd() / 1000).toFixed(1) + ' s';
+  lbDrawTl();
+}
+function lbDrawTl(){
+  const cv = document.getElementById('lbTl'); if (!cv || !LB.file || !LB.cur) return;
+  const r = cv.getBoundingClientRect(); if (r.width && Math.abs(cv.width - Math.round(r.width)) > 2) cv.width = Math.round(r.width);
+  const ctx = cv.getContext('2d'), W = cv.width, H = cv.height, end = lbEnd(), X = t => t / end * W;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(255,255,255,.05)'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(150,156,172,.7)'; (LB.file.hints || []).forEach(h => { ctx.fillRect(X(h[0]) - 1, 2, 2, 6); });
+  ctx.fillStyle = '#e0564b'; (LB.file.refusals || []).forEach(h => ctx.fillRect(X(h[0]) - 1, 10, 3, 14));
+  ctx.fillStyle = '#57d05a'; LB.cur.game.forEach(g => ctx.fillRect(X(g) - 1, 10, 3, 18));
+  ctx.fillStyle = '#ffc44d'; LB.cur.reps.forEach(g => { const x = X(g); ctx.beginPath(); ctx.moveTo(x, 34); ctx.lineTo(x - 6, 50); ctx.lineTo(x + 6, 50); ctx.closePath(); ctx.fill(); });
+  const x = X(LB.file.frames[LB.i][0]); ctx.fillStyle = '#eceef4'; ctx.fillRect(x - 1, 0, 2, H);
+}
+document.getElementById('lbRetry').onclick = () => { LB.error = null; lbSave(); };
+document.addEventListener('keydown', e => {
+  if (TAB !== 'labels' || !LB.cur) return;
+  const tag = (e.target && e.target.tagName) || ''; if (tag === 'TEXTAREA' || tag === 'INPUT') { if (e.key === 'Escape') e.target.blur(); return; }
+  const k = e.key.toLowerCase();
+  if (k === ' ') { e.preventDefault(); lbToggle(); }
+  else if (k === 'r') lbAdd(); else if (k === 'x' || k === 'delete' || k === 'backspace') { e.preventDefault(); lbDel(); }
+  else if (k === 'z') lbUndo();
+  else if (k === 'arrowleft') { e.preventDefault(); lbStep(e.shiftKey ? -15 : -1); } else if (k === 'arrowright') { e.preventDefault(); lbStep(e.shiftKey ? 15 : 1); }
+  else if (k >= '1' && k <= '4') lbVerdict(LB_VERDICTS[Number(k) - 1][0]);
+  else if (k === 'enter') { e.preventDefault(); lbDone(); }
 });
 
 async function boot(){
